@@ -34,6 +34,14 @@ class Product extends Model
     }
 
     /**
+     * Get all order details associated with this product for sales tracking.
+     */
+    public function orderDetails()
+    {
+        return $this->hasMany(OrderDetail::class);
+    }
+
+    /**
      * Calculate the actual available stock from active batches.
      */
     public function calculateActiveStock()

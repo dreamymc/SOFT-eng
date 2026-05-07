@@ -89,7 +89,13 @@ class UserController extends Controller
     }
 
     public function report(){
-        $allProducts = Product::with('batches')->get();
+        $allProducts = Product::with(['batches' => function($query) {
+                $query->where('status', 'active')
+                      ->orderByRaw('expires_at IS NULL, expires_at ASC');
+            }])
+            ->withSum('orderDetails', 'quantity')
+            ->get();
+
         $lowStockProducts = $allProducts->where('stocks', '<=', 15)->sortBy('stocks')->values();
 
         $stockAlerts = $lowStockProducts->map(function($product) {
@@ -107,13 +113,25 @@ class UserController extends Controller
                 $label = 'Low Stock';
             }
 
+            // Determine what to display for the date based on remaining active batches
+            $nextBatch = $product->batches->first();
+            $dateText = 'N/A';
+            
+            if ($product->stocks == 0) {
+                $dateText = 'Depleted';
+            } elseif ($nextBatch && $nextBatch->expires_at) {
+                $dateText = 'Exp: ' . \Carbon\Carbon::parse($nextBatch->expires_at)->format('M j, Y');
+            } elseif ($nextBatch && !$nextBatch->expires_at) {
+                $dateText = 'Non-Perishable';
+            }
+
             return [
                 'id' => $product->id,
                 'type' => $type,
                 'label' => $label,
                 'product' => $product->product_name,
                 'units' => $product->stocks,
-                'date' => $product->updated_at->diffForHumans() . ' (' . $product->updated_at->format('M j, Y') . ')'
+                'date' => $dateText
             ];
         });
 
@@ -146,6 +164,7 @@ class UserController extends Controller
         ];
 
         return inertia('Admin/Report', [
+            'allProducts' => $allProducts,
             'stockAlerts' => $stockAlerts,
             'salesOverview' => $salesOverview
         ]);
@@ -188,7 +207,6 @@ class UserController extends Controller
         ]);
     }
 
-    // FIXED: Properly routes back to the main employee page so it doesn't 404
     public function fireEmployee($id) {
         $employee = User::findOrFail($id);
         
@@ -198,7 +216,6 @@ class UserController extends Controller
         
         $employee->delete();
         
-        // REDIRECTS TO MAIN EMPLOYEE PAGE, NOT BACK
         return redirect()->route('admin.employee')->with('success', 'Employee fired successfully.');
     }
 
