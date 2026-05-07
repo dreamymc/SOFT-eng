@@ -171,9 +171,12 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
                                                     {alert.label} {alert.type === 'attention' && <AlertCircleIcon />}
                                                 </p>
                                                 <h3 className="fw-bold mb-3" style={{ color: style.text }}>{alert.product}</h3>
+                                                
+                                                {/* FIXED: Removed forced zero padding. Now renders raw integer */}
                                                 <h5 className="fw-bold mb-4" style={{ color: style.text }}>
-                                                    {alert.units < 10 && alert.units > 0 ? `0${alert.units}` : alert.units === 0 ? '00' : alert.units} Units
+                                                    {alert.units} {alert.units === 1 ? 'Unit' : 'Units'}
                                                 </h5>
+                                                
                                                 <div className="d-flex align-items-center justify-content-center gap-2 mt-auto" style={{ color: style.mutedText, fontSize: '0.8rem' }}>
                                                     <ClockIcon />
                                                     <span>{alert.date}</span>
@@ -284,7 +287,7 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
                                                 <th className="text-secondary">Product Name</th>
                                                 <th className="text-secondary text-center">Current Stock</th>
                                                 <th className="text-secondary text-center">Status</th>
-                                                <th className="text-secondary text-end">Last Updated</th>
+                                                <th className="text-secondary text-end">Alert Details</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -378,8 +381,8 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
                                                                 <p className="text-muted mb-1 small fw-semibold text-uppercase">Next Expiration</p>
                                                                 {nextBatch ? (
                                                                     <>
-                                                                        <h5 className="fw-bold m-0 text-danger">
-                                                                            {new Date(nextBatch.expires_at).toLocaleDateString()}
+                                                                        <h5 className={`fw-bold m-0 ${nextBatch.expires_at ? 'text-danger' : 'text-muted'}`}>
+                                                                            {nextBatch.expires_at ? new Date(nextBatch.expires_at).toLocaleDateString() : 'N/A'}
                                                                         </h5>
                                                                         <span className="text-muted" style={{ fontSize: '0.75rem' }}>
                                                                             Batch #{nextBatch.batch_id || nextBatch.id} ({nextBatch.quantity} units)

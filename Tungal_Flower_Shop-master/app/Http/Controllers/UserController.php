@@ -89,9 +89,9 @@ class UserController extends Controller
     }
 
     public function report(){
-        // FIXED: Changed 'expiration_date' to the correct 'expires_at' database column
         $allProducts = Product::with(['batches' => function($query) {
-                $query->where('status', 'active')->orderBy('expires_at', 'asc');
+                $query->where('status', 'active')
+                      ->orderByRaw('expires_at IS NULL, expires_at ASC');
             }])
             ->withSum('orderDetails', 'quantity')
             ->get();
@@ -113,13 +113,25 @@ class UserController extends Controller
                 $label = 'Low Stock';
             }
 
+            // Determine what to display for the date based on remaining active batches
+            $nextBatch = $product->batches->first();
+            $dateText = 'N/A';
+            
+            if ($product->stocks == 0) {
+                $dateText = 'Depleted';
+            } elseif ($nextBatch && $nextBatch->expires_at) {
+                $dateText = 'Exp: ' . \Carbon\Carbon::parse($nextBatch->expires_at)->format('M j, Y');
+            } elseif ($nextBatch && !$nextBatch->expires_at) {
+                $dateText = 'Non-Perishable';
+            }
+
             return [
                 'id' => $product->id,
                 'type' => $type,
                 'label' => $label,
                 'product' => $product->product_name,
                 'units' => $product->stocks,
-                'date' => $product->updated_at->diffForHumans() . ' (' . $product->updated_at->format('M j, Y') . ')'
+                'date' => $dateText
             ];
         });
 
