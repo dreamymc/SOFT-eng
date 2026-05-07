@@ -124,11 +124,11 @@ const ReviewReturnModal = ({ isOpen, onClose, record }) => {
                     <div className="d-flex flex-column gap-3 mb-4">
                         <div className="d-flex justify-content-between border-bottom pb-2">
                             <span className="fw-medium text-muted">Request ID:</span>
-                            <span className="fw-bold text-dark">#{String(record.id).padStart(4, '0')}</span>
+                            <span className="fw-bold text-dark">#TUNGAL{record.id}</span>
                         </div>
                         <div className="d-flex justify-content-between border-bottom pb-2">
                             <span className="fw-medium text-muted">Order ID:</span>
-                            <span className="fw-bold text-dark">#{String(record.order_id).padStart(4, '0')}</span>
+                            <span className="fw-bold text-dark">#TUNGAL{record.order_id}</span>
                         </div>
                         <div className="d-flex justify-content-between border-bottom pb-2">
                             <span className="fw-medium text-muted">Cashier:</span>
@@ -292,7 +292,7 @@ export default function Approvals({ pendingPayrolls = [], pendingReturns = [] })
                                     {filteredPayrolls.length > 0 ? (
                                         filteredPayrolls.map((row, index) => (
                                             <tr key={row.id} style={{ borderBottom: index !== filteredPayrolls.length - 1 ? '1px solid #F0F0F5' : 'none' }}>
-                                                <td className="py-4 fw-bolder text-dark">#{String(row.id).padStart(4, '0')}</td>
+                                                <td className="py-4 fw-bolder text-dark">#TUNGAL{row.id}</td>
                                                 <td className="py-4 text-dark fw-medium">
                                                     {row.employee ? `${row.employee.firstname} ${row.employee.lastname}` : `User ID: ${row.employee_id}`}
                                                 </td>
@@ -345,7 +345,7 @@ export default function Approvals({ pendingPayrolls = [], pendingReturns = [] })
                                     {filteredReturns.length > 0 ? (
                                         filteredReturns.map((row, index) => (
                                             <tr key={row.id} style={{ borderBottom: index !== filteredReturns.length - 1 ? '1px solid #F0F0F5' : 'none' }}>
-                                                <td className="py-4 fw-bolder text-dark">#{String(row.id).padStart(4, '0')}</td>
+                                                <td className="py-4 fw-bolder text-dark">#TUNGAL{row.id}</td>
                                                 <td className="py-4 text-dark fw-medium text-truncate" style={{ maxWidth: '150px' }}>
                                                     {row.reason || 'N/A'}
                                                 </td>
