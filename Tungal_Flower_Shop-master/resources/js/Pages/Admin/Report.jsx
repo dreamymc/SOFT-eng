@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../../Layout/AdminLayout';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const AlertCircleIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -85,7 +85,7 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
         return `${formatDate(start)}-${formatDate(end)}`;
     };
 
-    // Native Silent PDF Generator using jsPDF
+    // Native Silent PDF Generator using jsPDF and strict autoTable execution
     const generatePDF = (periodStr) => {
         try {
             const periodName = periodStr === 'monthly' ? 'Monthly' : 'Weekly';
@@ -103,8 +103,8 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
             doc.setTextColor(100, 100, 100);
             doc.text(`Report Period: ${dateRange}`, 14, 30);
 
-            // Add Data Table
-            doc.autoTable({
+            // Add Data Table explicitly using the imported autoTable function
+            autoTable(doc, {
                 startY: 40,
                 headStyles: { fillColor: [121, 120, 233] }, // #7978E9
                 head: [['Metric Overview', 'Total Value', 'Performance Trend']],
@@ -128,7 +128,7 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
 
         } catch (error) {
             console.error("PDF Generation failed: ", error);
-            alert("Failed to generate PDF. Make sure you restart your terminal (npm run dev) so the new packages load.");
+            alert(`Failed to generate PDF. Error: ${error.message}`);
         }
     };
 
