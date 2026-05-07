@@ -89,7 +89,13 @@ class UserController extends Controller
     }
 
     public function report(){
-        $allProducts = Product::with('batches')->get();
+        // FIXED: Changed 'expiration_date' to the correct 'expires_at' database column
+        $allProducts = Product::with(['batches' => function($query) {
+                $query->where('status', 'active')->orderBy('expires_at', 'asc');
+            }])
+            ->withSum('orderDetails', 'quantity')
+            ->get();
+
         $lowStockProducts = $allProducts->where('stocks', '<=', 15)->sortBy('stocks')->values();
 
         $stockAlerts = $lowStockProducts->map(function($product) {

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../../Layout/AdminLayout';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 const AlertCircleIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -63,7 +65,7 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
         }
     };
 
-    // Calculate dynamic date range string (e.g. 05-01-to-05-07)
+    // Calculate dynamic date range string (e.g. 05/01-05/07)
     const getDateRangeString = (period) => {
         const end = new Date();
         const start = new Date();
@@ -77,117 +79,57 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
         const formatDate = (date) => {
             const mm = String(date.getMonth() + 1).padStart(2, '0');
             const dd = String(date.getDate()).padStart(2, '0');
-            return `${mm}-${dd}`;
+            return `${mm}/${dd}`;
         };
 
-        return `${formatDate(start)}-to-${formatDate(end)}`;
+        return `${formatDate(start)}-${formatDate(end)}`;
     };
 
-    // PDF Generator via Browser Print Engine
+    // Native Silent PDF Generator using jsPDF
     const generatePDF = (periodStr) => {
-        const periodName = periodStr === 'monthly' ? 'Monthly' : 'Weekly';
-        const dateRange = getDateRangeString(periodName);
-        const fileName = `FlowerShop${periodName}_${dateRange}`;
+        try {
+            const periodName = periodStr === 'monthly' ? 'Monthly' : 'Weekly';
+            const dateRange = getDateRangeString(periodName);
+            const fileName = `FlowerShop${periodName}_${dateRange.replace(/\//g, '')}.pdf`;
 
-        // Create a temporary print window
-        const printWindow = window.open('', '_blank');
-        
-        // Inject clean, printable HTML layout
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>${fileName}</title>
-                <style>
-                    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
-                    body { 
-                        font-family: 'Poppins', sans-serif; 
-                        padding: 40px; 
-                        color: #1E1E1E; 
-                        background-color: #fff;
-                    }
-                    .header {
-                        border-bottom: 2px solid #1F2D5A;
-                        padding-bottom: 10px;
-                        margin-bottom: 30px;
-                    }
-                    h1 { color: #1F2D5A; margin: 0; font-size: 24px; }
-                    .date-range { color: #6c757d; font-size: 14px; margin-top: 5px; }
-                    table { 
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        margin-top: 20px; 
-                    }
-                    th, td { 
-                        border: 1px solid #ddd; 
-                        padding: 15px; 
-                        text-align: left; 
-                    }
-                    th { 
-                        background-color: #F5F4FF; 
-                        color: #1F2D5A;
-                        font-weight: 600;
-                    }
-                    .amount { font-weight: bold; }
-                    .footer {
-                        margin-top: 50px;
-                        font-size: 12px;
-                        color: #aaa;
-                        text-align: center;
-                    }
-                    @media print {
-                        @page { margin: 1cm; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h1>Tungal Flower Shop - ${periodName} Sales Report</h1>
-                    <div class="date-range">Report Period: ${dateRange.replace(/-/g, '/').replace('/to/', ' to ')}</div>
-                </div>
-                
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Metric Overview</th>
-                            <th>Total Value</th>
-                            <th>Performance Trend</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Total Generated Sales</td>
-                            <td class="amount">PHP ${salesOverview.totalSales || '0'}</td>
-                            <td>${salesOverview.salesTrend || '0%'}</td>
-                        </tr>
-                        <tr>
-                            <td>Total Processed Orders</td>
-                            <td class="amount">${salesOverview.totalOrders || '0'} Orders</td>
-                            <td>${salesOverview.ordersTrend || '0%'}</td>
-                        </tr>
-                        <tr>
-                            <td>Average Sale per Order</td>
-                            <td class="amount">PHP ${salesOverview.avgSales || '0'}</td>
-                            <td>${salesOverview.avgTrend || '0%'}</td>
-                        </tr>
-                    </tbody>
-                </table>
+            const doc = new jsPDF();
 
-                <div class="footer">
-                    Generated automatically by Tungal Flower Shop System.
-                </div>
+            // Add Header
+            doc.setFontSize(22);
+            doc.setTextColor(31, 45, 90); // #1F2D5A
+            doc.text(`Tungal Flower Shop - ${periodName} Report`, 14, 22);
+            
+            doc.setFontSize(12);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Report Period: ${dateRange}`, 14, 30);
 
-                <script>
-                    window.onload = () => {
-                        window.print();
-                        setTimeout(() => { window.close(); }, 500);
-                    };
-                </script>
-            </body>
-            </html>
-        `);
-        
-        printWindow.document.close();
+            // Add Data Table
+            doc.autoTable({
+                startY: 40,
+                headStyles: { fillColor: [121, 120, 233] }, // #7978E9
+                head: [['Metric Overview', 'Total Value', 'Performance Trend']],
+                body: [
+                    ['Total Generated Sales', `PHP ${salesOverview.totalSales || '0'}`, salesOverview.salesTrend || '0%'],
+                    ['Total Processed Orders', `${salesOverview.totalOrders || '0'} Orders`, salesOverview.ordersTrend || '0%'],
+                    ['Average Sale per Order', `PHP ${salesOverview.avgSales || '0'}`, salesOverview.avgTrend || '0%'],
+                ],
+                theme: 'grid',
+                styles: { fontSize: 11, cellPadding: 6 }
+            });
+
+            // Add Footer
+            const pageHeight = doc.internal.pageSize.height;
+            doc.setFontSize(10);
+            doc.setTextColor(150, 150, 150);
+            doc.text('Generated automatically by Tungal Flower Shop System.', 14, pageHeight - 10);
+
+            // Download silently
+            doc.save(fileName);
+
+        } catch (error) {
+            console.error("PDF Generation failed: ", error);
+            alert("Failed to generate PDF. Make sure you restart your terminal (npm run dev) so the new packages load.");
+        }
     };
 
     return (
@@ -379,42 +321,86 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
                 </div>
             )}
 
-            {/* Inventory Report Modal - Cleaned up to strictly show actual products */}
+            {/* Simplified Inventory Report Modal (Next Expiring Batch only) */}
             {isInventoryModalOpen && (
                 <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                    <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                         <div className="modal-content border-0 shadow" style={{ borderRadius: '15px' }}>
                             <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                                <h4 className="modal-title fw-bold" style={{ color: '#7978E9' }}>
-                                    <ReportIcon /> Current Inventory
-                                </h4>
+                                <div>
+                                    <h4 className="modal-title fw-bold m-0" style={{ color: '#7978E9' }}>
+                                        <ReportIcon /> Current Master Inventory
+                                    </h4>
+                                    <p className="text-muted small mt-1 mb-0">Overview of available stock, sales, and the next expiring batch.</p>
+                                </div>
                                 <button type="button" className="btn-close m-0" onClick={() => setIsInventoryModalOpen(false)}></button>
                             </div>
                             <div className="modal-body p-4">
-                                <div className="table-responsive">
-                                    <table className="table table-bordered table-hover align-middle mb-0">
-                                        <thead className="table-light">
-                                            <tr>
-                                                <th className="text-secondary text-uppercase" style={{ fontSize: '0.85rem', width: '20%' }}>Product ID</th>
-                                                <th className="text-secondary text-uppercase" style={{ fontSize: '0.85rem' }}>Product Name</th>
-                                                <th className="text-secondary text-uppercase text-center" style={{ fontSize: '0.85rem', width: '25%' }}>Current Stock</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {allProducts && allProducts.length > 0 ? allProducts.map(product => (
-                                                <tr key={product.id}>
-                                                    <td className="text-muted fw-semibold">#{product.id.toString().padStart(4, '0')}</td>
-                                                    <td className="fw-bold" style={{ color: '#1E1E1E' }}>{product.product_name}</td>
-                                                    <td className="text-center fw-bold fs-5">{product.stocks}</td>
-                                                </tr>
-                                            )) : (
-                                                <tr>
-                                                    <td colSpan="3" className="text-center py-5 text-muted fw-bold">No inventory products found in the database.</td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                
+                                {allProducts && allProducts.length > 0 ? allProducts.map(product => {
+                                    
+                                    // Because the controller already uses orderBy('expires_at', 'asc'),
+                                    // the very first active batch in this array is the closest to expiration.
+                                    const nextBatch = product.batches && product.batches.length > 0 ? product.batches[0] : null;
+
+                                    return (
+                                        <div key={product.id} className="card border-0 shadow-sm mb-4" style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #eee' }}>
+                                            <div className="card-body p-4">
+                                                <div className="row align-items-center">
+                                                    
+                                                    {/* Flower Image & Title */}
+                                                    <div className="col-12 col-md-4 d-flex align-items-center gap-3 mb-3 mb-md-0">
+                                                        <div style={{ width: '80px', height: '80px', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#f8f9fa', flexShrink: 0 }}>
+                                                            {product.image ? (
+                                                                <img src={`/storage/${product.image}`} alt={product.product_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                            ) : (
+                                                                <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted">No Img</div>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <h5 className="fw-bold mb-1" style={{ color: '#1E1E1E' }}>{product.product_name}</h5>
+                                                            <span className="badge bg-light text-secondary border">ID: #{product.id.toString().padStart(4, '0')}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Overview Stats */}
+                                                    <div className="col-12 col-md-8">
+                                                        <div className="row text-center">
+                                                            <div className="col-4 border-end">
+                                                                <p className="text-muted mb-1 small fw-semibold text-uppercase">Total In Stock</p>
+                                                                <h4 className={`fw-bold m-0 ${product.stocks <= 10 ? 'text-danger' : 'text-success'}`}>{product.stocks}</h4>
+                                                            </div>
+                                                            <div className="col-4 border-end">
+                                                                <p className="text-muted mb-1 small fw-semibold text-uppercase">Total Sold</p>
+                                                                <h4 className="fw-bold m-0" style={{ color: '#7978E9' }}>{product.order_details_sum_quantity || 0}</h4>
+                                                            </div>
+                                                            <div className="col-4">
+                                                                <p className="text-muted mb-1 small fw-semibold text-uppercase">Next Expiration</p>
+                                                                {nextBatch ? (
+                                                                    <>
+                                                                        <h5 className="fw-bold m-0 text-danger">
+                                                                            {new Date(nextBatch.expires_at).toLocaleDateString()}
+                                                                        </h5>
+                                                                        <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                            Batch #{nextBatch.batch_id || nextBatch.id} ({nextBatch.quantity} units)
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-muted small fw-bold">No Active Batches</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }) : (
+                                    <div className="text-center py-5">
+                                        <h5 className="text-muted fw-bold">No inventory products found in the database.</h5>
+                                    </div>
+                                )}
+
                             </div>
                         </div>
                     </div>
