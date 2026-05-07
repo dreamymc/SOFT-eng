@@ -1,5 +1,5 @@
-import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import React, { useState } from 'react';
+import { Head } from '@inertiajs/react';
 import AdminLayout from '../../Layout/AdminLayout';
 
 const AlertCircleIcon = () => (
@@ -42,22 +42,152 @@ const ClockIcon = () => (
     </svg>
 );
 
-// We removed the hardcoded fallback data. This now receives the live data from UserController
-function Report({ stockAlerts = [], salesOverview = {} }) {
+function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
+    
+    // State for managing modals
+    const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+    const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
 
     const getAlertStyle = (type) => {
         switch(type) {
             case 'below_minimum':
-                return { bg: '#FFFFFF', text: '#D84B51', mutedText: '#6c757d' };
+                return { bg: '#FFFFFF', text: '#D84B51', mutedText: '#6c757d', badge: 'danger' };
             case 'attention':
-                return { bg: '#D98014', text: '#FFFFFF', mutedText: '#FFFFFF' };
+                return { bg: '#D98014', text: '#FFFFFF', mutedText: '#FFFFFF', badge: 'warning' };
             case 'low_stock':
-                return { bg: '#FFFFFF', text: '#D98014', mutedText: '#6c757d' };
+                return { bg: '#FFFFFF', text: '#D98014', mutedText: '#6c757d', badge: 'warning' };
             case 'out_of_stock':
-                return { bg: '#B21F1F', text: '#FFFFFF', mutedText: '#FFFFFF' };
+                return { bg: '#B21F1F', text: '#FFFFFF', mutedText: '#FFFFFF', badge: 'dark' };
             default:
-                return { bg: '#FFFFFF', text: '#1E1E1E', mutedText: '#6c757d' };
+                return { bg: '#FFFFFF', text: '#1E1E1E', mutedText: '#6c757d', badge: 'secondary' };
         }
+    };
+
+    // Calculate dynamic date range string (e.g. 05-01-to-05-07)
+    const getDateRangeString = (period) => {
+        const end = new Date();
+        const start = new Date();
+        
+        if (period === 'Weekly') {
+            start.setDate(end.getDate() - 7);
+        } else if (period === 'Monthly') {
+            start.setDate(end.getDate() - 30);
+        }
+
+        const formatDate = (date) => {
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${mm}-${dd}`;
+        };
+
+        return `${formatDate(start)}-to-${formatDate(end)}`;
+    };
+
+    // PDF Generator via Browser Print Engine
+    const generatePDF = (periodStr) => {
+        const periodName = periodStr === 'monthly' ? 'Monthly' : 'Weekly';
+        const dateRange = getDateRangeString(periodName);
+        const fileName = `FlowerShop${periodName}_${dateRange}`;
+
+        // Create a temporary print window
+        const printWindow = window.open('', '_blank');
+        
+        // Inject clean, printable HTML layout
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${fileName}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+                    body { 
+                        font-family: 'Poppins', sans-serif; 
+                        padding: 40px; 
+                        color: #1E1E1E; 
+                        background-color: #fff;
+                    }
+                    .header {
+                        border-bottom: 2px solid #1F2D5A;
+                        padding-bottom: 10px;
+                        margin-bottom: 30px;
+                    }
+                    h1 { color: #1F2D5A; margin: 0; font-size: 24px; }
+                    .date-range { color: #6c757d; font-size: 14px; margin-top: 5px; }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin-top: 20px; 
+                    }
+                    th, td { 
+                        border: 1px solid #ddd; 
+                        padding: 15px; 
+                        text-align: left; 
+                    }
+                    th { 
+                        background-color: #F5F4FF; 
+                        color: #1F2D5A;
+                        font-weight: 600;
+                    }
+                    .amount { font-weight: bold; }
+                    .footer {
+                        margin-top: 50px;
+                        font-size: 12px;
+                        color: #aaa;
+                        text-align: center;
+                    }
+                    @media print {
+                        @page { margin: 1cm; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Tungal Flower Shop - ${periodName} Sales Report</h1>
+                    <div class="date-range">Report Period: ${dateRange.replace(/-/g, '/').replace('/to/', ' to ')}</div>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric Overview</th>
+                            <th>Total Value</th>
+                            <th>Performance Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Total Generated Sales</td>
+                            <td class="amount">PHP ${salesOverview.totalSales || '0'}</td>
+                            <td>${salesOverview.salesTrend || '0%'}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Processed Orders</td>
+                            <td class="amount">${salesOverview.totalOrders || '0'} Orders</td>
+                            <td>${salesOverview.ordersTrend || '0%'}</td>
+                        </tr>
+                        <tr>
+                            <td>Average Sale per Order</td>
+                            <td class="amount">PHP ${salesOverview.avgSales || '0'}</td>
+                            <td>${salesOverview.avgTrend || '0%'}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    Generated automatically by Tungal Flower Shop System.
+                </div>
+
+                <script>
+                    window.onload = () => {
+                        window.print();
+                        setTimeout(() => { window.close(); }, 500);
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
     };
 
     return (
@@ -68,9 +198,9 @@ function Report({ stockAlerts = [], salesOverview = {} }) {
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h1 className="fw-bold m-0" style={{ color: '#1E1E1E', fontSize: '2.5rem' }}>Reports</h1>
                 
-                <Link href="#" className="btn d-flex align-items-center gap-2 fw-bold text-white shadow-sm px-4" style={{ backgroundColor: '#7978E9', borderRadius: '10px', height: '50px' }}>
+                <button onClick={() => setIsInventoryModalOpen(true)} className="btn d-flex align-items-center gap-2 fw-bold text-white shadow-sm px-4" style={{ backgroundColor: '#7978E9', borderRadius: '10px', height: '50px', border: 'none' }}>
                     <ReportIcon /> Inventory Report
-                </Link>
+                </button>
             </div>
 
             {/* SECTION 1: Critical Stock Alerts */}
@@ -82,9 +212,9 @@ function Report({ stockAlerts = [], salesOverview = {} }) {
                             <AlertCircleIcon />
                             <h4 className="fw-bold m-0">Critical Stock Alerts</h4>
                         </div>
-                        <Link href="#" className="btn d-flex align-items-center gap-2 fw-bold text-white shadow-sm px-4" style={{ backgroundColor: '#D84B51', borderRadius: '10px', height: '45px' }}>
+                        <button onClick={() => setIsAlertModalOpen(true)} className="btn d-flex align-items-center gap-2 fw-bold text-white shadow-sm px-4" style={{ backgroundColor: '#D84B51', borderRadius: '10px', height: '45px', border: 'none' }}>
                             <ReportIcon /> Alert Report
-                        </Link>
+                        </button>
                     </div>
 
                     <div className="row g-4">
@@ -175,21 +305,121 @@ function Report({ stockAlerts = [], salesOverview = {} }) {
 
                     {/* Download buttons */}
                     <div className="d-flex justify-content-center gap-4">
-                        <Link href="#" className="btn d-flex flex-column align-items-center justify-content-center fw-bold shadow-sm" style={{ backgroundColor: '#9CB4FA', color: '#1E1E1E', borderRadius: '10px', width: '220px', height: '80px' }}>
+                        <button onClick={() => generatePDF('monthly')} className="btn d-flex flex-column align-items-center justify-content-center fw-bold shadow-sm" style={{ backgroundColor: '#9CB4FA', color: '#1E1E1E', borderRadius: '10px', width: '220px', height: '80px', border: 'none' }}>
                             <span>Download</span>
-                            <span>Monthly Report</span>
+                            <span>Monthly PDF Report</span>
                             <DownloadIcon />
-                        </Link>
+                        </button>
                         
-                        <Link href="#" className="btn d-flex flex-column align-items-center justify-content-center fw-bold shadow-sm" style={{ backgroundColor: '#9CB4FA', color: '#1E1E1E', borderRadius: '10px', width: '220px', height: '80px' }}>
+                        <button onClick={() => generatePDF('weekly')} className="btn d-flex flex-column align-items-center justify-content-center fw-bold shadow-sm" style={{ backgroundColor: '#9CB4FA', color: '#1E1E1E', borderRadius: '10px', width: '220px', height: '80px', border: 'none' }}>
                             <span>Download</span>
-                            <span>Weekly Report</span>
+                            <span>Weekly PDF Report</span>
                             <DownloadIcon />
-                        </Link>
+                        </button>
                     </div>
 
                 </div>
             </div>
+
+            {/* --- MODALS --- */}
+            
+            {/* Alert Report Modal */}
+            {isAlertModalOpen && (
+                <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                        <div className="modal-content border-0 shadow" style={{ borderRadius: '15px' }}>
+                            <div className="modal-header border-bottom-0 pb-0 pt-4 px-4">
+                                <h4 className="modal-title fw-bold" style={{ color: '#D84B51' }}>
+                                    <AlertCircleIcon /> Critical Alerts List
+                                </h4>
+                                <button type="button" className="btn-close" onClick={() => setIsAlertModalOpen(false)}></button>
+                            </div>
+                            <div className="modal-body p-4">
+                                <div className="table-responsive">
+                                    <table className="table table-hover align-middle">
+                                        <thead className="table-light">
+                                            <tr>
+                                                <th className="text-secondary">Product Name</th>
+                                                <th className="text-secondary text-center">Current Stock</th>
+                                                <th className="text-secondary text-center">Status</th>
+                                                <th className="text-secondary text-end">Last Updated</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {stockAlerts.length > 0 ? stockAlerts.map(alert => {
+                                                const style = getAlertStyle(alert.type);
+                                                return (
+                                                    <tr key={alert.id}>
+                                                        <td className="fw-bold" style={{ color: '#1E1E1E' }}>{alert.product}</td>
+                                                        <td className="text-center fw-semibold">{alert.units}</td>
+                                                        <td className="text-center">
+                                                            <span className={`badge bg-${style.badge} px-3 py-2 rounded-pill`}>
+                                                                {alert.label}
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-end text-muted small">{alert.date}</td>
+                                                    </tr>
+                                                );
+                                            }) : (
+                                                <tr>
+                                                    <td colSpan="4" className="text-center py-4 text-muted fw-bold">No critical alerts to display.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div className="modal-footer border-top-0 pt-0 px-4 pb-4">
+                                <button type="button" className="btn text-white fw-bold px-4" style={{ backgroundColor: '#D84B51', borderRadius: '8px' }} onClick={() => setIsAlertModalOpen(false)}>
+                                    Acknowledge
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Inventory Report Modal - Cleaned up to strictly show actual products */}
+            {isInventoryModalOpen && (
+                <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                        <div className="modal-content border-0 shadow" style={{ borderRadius: '15px' }}>
+                            <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                                <h4 className="modal-title fw-bold" style={{ color: '#7978E9' }}>
+                                    <ReportIcon /> Current Inventory
+                                </h4>
+                                <button type="button" className="btn-close m-0" onClick={() => setIsInventoryModalOpen(false)}></button>
+                            </div>
+                            <div className="modal-body p-4">
+                                <div className="table-responsive">
+                                    <table className="table table-bordered table-hover align-middle mb-0">
+                                        <thead className="table-light">
+                                            <tr>
+                                                <th className="text-secondary text-uppercase" style={{ fontSize: '0.85rem', width: '20%' }}>Product ID</th>
+                                                <th className="text-secondary text-uppercase" style={{ fontSize: '0.85rem' }}>Product Name</th>
+                                                <th className="text-secondary text-uppercase text-center" style={{ fontSize: '0.85rem', width: '25%' }}>Current Stock</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {allProducts && allProducts.length > 0 ? allProducts.map(product => (
+                                                <tr key={product.id}>
+                                                    <td className="text-muted fw-semibold">#{product.id.toString().padStart(4, '0')}</td>
+                                                    <td className="fw-bold" style={{ color: '#1E1E1E' }}>{product.product_name}</td>
+                                                    <td className="text-center fw-bold fs-5">{product.stocks}</td>
+                                                </tr>
+                                            )) : (
+                                                <tr>
+                                                    <td colSpan="3" className="text-center py-5 text-muted fw-bold">No inventory products found in the database.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

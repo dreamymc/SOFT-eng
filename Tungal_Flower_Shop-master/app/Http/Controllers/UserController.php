@@ -146,6 +146,7 @@ class UserController extends Controller
         ];
 
         return inertia('Admin/Report', [
+            'allProducts' => $allProducts,
             'stockAlerts' => $stockAlerts,
             'salesOverview' => $salesOverview
         ]);
@@ -188,7 +189,6 @@ class UserController extends Controller
         ]);
     }
 
-    // FIXED: Properly routes back to the main employee page so it doesn't 404
     public function fireEmployee($id) {
         $employee = User::findOrFail($id);
         
@@ -198,7 +198,6 @@ class UserController extends Controller
         
         $employee->delete();
         
-        // REDIRECTS TO MAIN EMPLOYEE PAGE, NOT BACK
         return redirect()->route('admin.employee')->with('success', 'Employee fired successfully.');
     }
 
