@@ -14,6 +14,6 @@ class AdminMiddleware
         if (auth()->check() && in_array(auth()->user()->role, ['Admin', 'Manager', 'Owner'])) {
             return $next($request);
         }
-        abort(403);
+        abort(403, 'Forbidden - no permission');
     }
 }

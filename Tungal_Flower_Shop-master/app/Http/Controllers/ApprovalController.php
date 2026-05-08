@@ -52,7 +52,13 @@ class ApprovalController extends Controller
      */
     public function handlePayroll(Request $request, $id, $action)
     {
+        // 404 mapped gap: findOrFail throws a strict 404 if the record doesn't exist
         $payroll = Payroll::findOrFail($id);
+
+        // 400 mapped gap: Prevent illogical state changes (approving an already approved payroll)
+        if ($payroll->status !== 'Pending') {
+            abort(400, 'Bad Request: Payroll has already been processed.');
+        }
 
         if ($action === 'approve') {
             $payroll->update(['status' => 'Approved']);
@@ -64,7 +70,8 @@ class ApprovalController extends Controller
             return redirect()->back()->with('success', 'Payroll has been rejected.');
         }
 
-        return redirect()->back()->with('error', 'Invalid action specified.');
+        // 400 mapped gap: Invalid action parameter provided in the URL
+        abort(400, 'Bad Request: Invalid action specified.');
     }
 
     /**
@@ -72,7 +79,13 @@ class ApprovalController extends Controller
      */
     public function handleReturn(Request $request, $id, $action)
     {
+        // 404 mapped gap: findOrFail throws a strict 404 if the record doesn't exist
         $returnRequest = ReturnRequest::with('order.details')->findOrFail($id);
+
+        // 400 mapped gap: Prevent illogical state changes (rejecting an already rejected return)
+        if ($returnRequest->status !== 'Under Inspection') {
+            abort(400, 'Bad Request: Return request has already been processed.');
+        }
 
         if ($action === 'approve') {
             DB::beginTransaction();
@@ -94,7 +107,8 @@ class ApprovalController extends Controller
                 return redirect()->back()->with('success', 'Return approved and order updated. Remember to manually adjust inventory stocks if the items are reusable.');
             } catch (\Exception $e) {
                 DB::rollBack();
-                return redirect()->back()->with('error', 'Failed to approve return: ' . $e->getMessage());
+                // 500 mapped gap: Transaction failed
+                abort(500, 'Internal Server Error - Transaction failed: ' . $e->getMessage());
             }
         } 
         
@@ -113,10 +127,12 @@ class ApprovalController extends Controller
                 return redirect()->back()->with('success', 'Return request has been rejected and order status restored.');
             } catch (\Exception $e) {
                 DB::rollBack();
-                return redirect()->back()->with('error', 'Failed to reject return: ' . $e->getMessage());
+                // 500 mapped gap: Transaction failed
+                abort(500, 'Internal Server Error - Transaction failed: ' . $e->getMessage());
             }
         }
 
-        return redirect()->back()->with('error', 'Invalid action specified.');
+        // 400 mapped gap: Invalid action parameter provided in the URL
+        abort(400, 'Bad Request: Invalid action specified.');
     }
 }

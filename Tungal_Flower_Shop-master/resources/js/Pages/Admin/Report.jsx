@@ -374,8 +374,8 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
                                                                 <h4 className={`fw-bold m-0 ${product.stocks <= 10 ? 'text-danger' : 'text-success'}`}>{product.stocks}</h4>
                                                             </div>
                                                             <div className="col-4 border-end">
-                                                                <p className="text-muted mb-1 small fw-semibold text-uppercase">Total Sold</p>
-                                                                <h4 className="fw-bold m-0" style={{ color: '#7978E9' }}>{product.order_details_sum_quantity || 0}</h4>
+                                                                <p className="text-muted mb-1 small fw-semibold text-uppercase">Total Pieces Sold</p>
+                                                                <h4 className="fw-bold m-0" style={{ color: '#7978E9' }}>{product.total_pieces_sold || 0}</h4>
                                                             </div>
                                                             <div className="col-4">
                                                                 <p className="text-muted mb-1 small fw-semibold text-uppercase">Next Expiration</p>
