@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -49,21 +50,25 @@ class UserController extends Controller
         $recent_orders_count = Order::where('created_at', '>=', now()->subDays(30))->count();
 
         $chartData = OrderDetail::with('product')
-            ->selectRaw('product_id, SUM(quantity) as total_sales')
+            ->selectRaw('product_id, SUM(total) as total_sales')
             ->groupBy('product_id')
             ->orderByDesc('total_sales')
             ->take(7)
             ->get();
 
         $topSellingProducts = OrderDetail::with('product')
-            ->selectRaw('product_id, SUM(quantity) as total_sales')
+            ->selectRaw('product_id, SUM(total) as total_sales')
             ->groupBy('product_id')
             ->orderByDesc('total_sales')
             ->take(3)
             ->get();
 
+        // Extract IDs of top selling products to exclude them from least selling
+        $topSellingIds = $topSellingProducts->pluck('product_id')->toArray();
+
         $leastSellingProducts = OrderDetail::with('product')
-            ->selectRaw('product_id, SUM(quantity) as total_sales')
+            ->selectRaw('product_id, SUM(total) as total_sales')
+            ->whereNotIn('product_id', $topSellingIds)
             ->groupBy('product_id')
             ->orderBy('total_sales', 'asc') 
             ->take(3)
@@ -89,11 +94,14 @@ class UserController extends Controller
     }
 
     public function report(){
-        $allProducts = Product::with(['batches' => function($query) {
+        $allProducts = Product::select('products.*')
+            ->with(['batches' => function($query) {
                 $query->where('status', 'active')
                       ->orderByRaw('expires_at IS NULL, expires_at ASC');
             }])
-            ->withSum('orderDetails', 'quantity')
+            ->addSelect(['total_pieces_sold' => OrderDetail::select(DB::raw('SUM(quantity * COALESCE(multiplier, 1))'))
+                ->whereColumn('product_id', 'products.id')
+            ])
             ->get();
 
         $lowStockProducts = $allProducts->where('stocks', '<=', 15)->sortBy('stocks')->values();

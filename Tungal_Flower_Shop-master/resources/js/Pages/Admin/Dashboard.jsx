@@ -1,7 +1,6 @@
 import React from 'react'
 import { BsBoxSeam } from "react-icons/bs";
 import { HiOutlinePencil } from "react-icons/hi2";
-import { BsFileText } from "react-icons/bs";
 import SalesChart from '../../Layout/SalesChart';
 import AdminLayout from '../../Layout/AdminLayout'
 
@@ -102,8 +101,8 @@ function Dashboard({
                                     topSellingProducts.map((item, index) => (
                                         <div className="col-4" key={index}>
                                             <div className="p-3 rounded h-100 d-flex flex-column justify-content-center" style={{ backgroundColor: topColors[index] || '#d0d4ef' }}>
-                                                <p className="fw-bold text-dark mb-2">{item.product?.product_name || 'Unknown'}</p>
-                                                <h4 className="fw-bold text-dark mb-0">{item.total_sales}</h4>
+                                                <p className="fw-bold text-dark mb-2 text-truncate" style={{ maxWidth: '100%' }}>{item.product?.product_name || 'Unknown'}</p>
+                                                <h4 className="fw-bold text-dark mb-0">₱{Number(item.total_sales).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
                                             </div>
                                         </div>
                                     ))
@@ -112,9 +111,6 @@ function Dashboard({
                                         <p className="text-muted mb-0">No sales data available yet.</p>
                                     </div>
                                 )}
-                            </div>
-                            <div className="text-center mt-4">
-                                <a href={route('admin.report')} className="text-decoration-none fw-bold" style={{ color: '#44519e' }}><BsFileText /> View Report</a>
                             </div>
                         </div>
                     </div>
@@ -129,8 +125,8 @@ function Dashboard({
                                     leastSellingProducts.map((item, index) => (
                                         <div className="col-4" key={index}>
                                             <div className="p-3 rounded h-100 d-flex flex-column justify-content-center" style={{ backgroundColor: leastColors[index] || '#fbd1d6' }}>
-                                                <p className="fw-bold text-dark mb-2">{item.product?.product_name || 'Unknown'}</p>
-                                                <h4 className="fw-bold text-dark mb-0">{item.total_sales}</h4>
+                                                <p className="fw-bold text-dark mb-2 text-truncate" style={{ maxWidth: '100%' }}>{item.product?.product_name || 'Unknown'}</p>
+                                                <h4 className="fw-bold text-dark mb-0">₱{Number(item.total_sales).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
                                             </div>
                                         </div>
                                     ))
@@ -139,9 +135,6 @@ function Dashboard({
                                         <p className="text-muted mb-0">No sales data available yet.</p>
                                     </div>
                                 )}
-                            </div>
-                            <div className="text-center mt-4">
-                                <a href={route('admin.report')} className="text-decoration-none fw-bold" style={{ color: '#de5b62' }}><BsFileText /> View Report</a>
                             </div>
                         </div>
                     </div>
