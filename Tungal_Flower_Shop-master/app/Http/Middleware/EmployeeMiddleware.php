@@ -14,6 +14,6 @@ class EmployeeMiddleware
         if (auth()->check() && in_array(auth()->user()->role, ['Employee', 'Cashier', 'Manager', 'Admin', 'Owner'])) {
             return $next($request);
         }
-        abort(403);
+        abort(403, 'Forbidden - no permission');
     }
 }

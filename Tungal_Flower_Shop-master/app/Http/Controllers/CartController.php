@@ -22,12 +22,15 @@ class CartController extends Controller
         ]);
 
         $user = auth()->user();
-        $product = Product::find($request->product_id);
+        
+        // 404 mapped gap: Native Exception if Product doesn't exist
+        $product = Product::findOrFail($request->product_id);
 
         $piecesNeeded = $request->quantity * $request->multiplier;
 
         if ($product->stocks < $piecesNeeded) {
-            return redirect()->back()->with('error', "Insufficient stock! Only {$product->stocks} base pieces available.");
+            // 400 mapped gap: Explicitly blocking illogical requests with HTTP code
+            abort(400, "Bad Request: Insufficient stock! Only {$product->stocks} base pieces available.");
         }
 
         $subtotal = $request->price * $piecesNeeded; 
@@ -67,7 +70,8 @@ class CartController extends Controller
         $user = auth()->user();
 
         if($fields['cash_received'] < $fields['total']){
-            return redirect()->back()->with('error', "Insufficient cash received to complete transaction.");
+            // 400 mapped gap: Invalid Payment
+            abort(400, "Bad Request: Insufficient cash received to complete transaction.");
         }
 
         try {
@@ -86,10 +90,12 @@ class CartController extends Controller
             $quantity = 0;
 
             foreach($fields['cart_id'] as $cart_id){
-                $cart = Cart::where('id',$cart_id)->first();
+                // 404 mapped gap: FindOrFail on standard IDs
+                $cart = Cart::findOrFail($cart_id);
                 $quantity += $cart->quantity; 
 
-                $product = Product::find($cart->product_id);
+                // 404 mapped gap: Ensure the product actually exists inside the transaction loop
+                $product = Product::findOrFail($cart->product_id);
                 $totalPiecesToDeduct = $cart->quantity * $cart->multiplier;
 
                 // FEFO (First Expired, First Out) Logic with Pessimistic Locking
@@ -118,7 +124,7 @@ class CartController extends Controller
 
                 // Guard against Ghost Deductions
                 if ($remainingToDeduct > 0) {
-                    throw new \Exception("Transaction failed: Not enough active batch stock for {$product->product_name}.");
+                    throw new \Exception("Not enough active batch stock for {$product->product_name}.");
                 }
 
                 OrderDetail::create([
@@ -145,13 +151,15 @@ class CartController extends Controller
                 throw new \Exception("Failed to update final order quantity.");
             }
         } catch (\Exception $e) {
+            // 500 mapped gap: Server/Transaction Error overrides default silent rollback logic
             DB::rollBack();
-            return redirect()->back()->with('error', $e->getMessage());
+            abort(500, "Internal Server Error - Transaction failed: " . $e->getMessage());
         }
     }
 
     public function invoice($order_id){
-        $order = Order::find($order_id);
+        // 404 mapped gap
+        $order = Order::findOrFail($order_id);
         $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
 
         return inertia('InvoiceReceipt',[
@@ -161,7 +169,8 @@ class CartController extends Controller
     }
 
     public function downloadInvoice($order_id){
-        $order = Order::find($order_id);
+        // 404 mapped gap
+        $order = Order::findOrFail($order_id);
         $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
 
         return inertia('Admin/InvoiceReceipt',[
@@ -177,7 +186,8 @@ class CartController extends Controller
         if($deleteItem){
             return redirect()->back()->with('success', 'Item voided from cart.');
         }else{
-            return redirect()->back()->with('error','Failed to remove item.');
+            // 400 mapped gap: Deleting a non-existent item or unowned item
+            abort(400, "Bad Request: Failed to remove item from cart.");
         }
     }
 }

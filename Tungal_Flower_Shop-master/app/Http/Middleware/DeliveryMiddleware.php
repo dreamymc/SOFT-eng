@@ -18,7 +18,7 @@ class DeliveryMiddleware
                 return $next($request);
                 break;
             default:
-                abort(403);
+                abort(403, 'Forbidden - no permission');
         }
     }
 }
