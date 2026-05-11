@@ -13,6 +13,14 @@ class Order extends Model
 
     protected $fillable = [
         'user_id',
+        
+        // --- INJECTED: Customer, Delivery, and Payment Tracking ---
+        'customer_name',
+        'customer_address',
+        'order_type',
+        'payment_method',
+        'reference_number',
+        
         'quantity',
         'total',
         'discount_percentage',

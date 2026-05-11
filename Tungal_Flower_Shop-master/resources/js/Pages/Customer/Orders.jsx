@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CustomerLayout from '../../Layout/CustomerLayout';
-import { Link, useForm, usePage } from '@inertiajs/react';
+import { Link, useForm, usePage, router } from '@inertiajs/react';
 import { IoReceipt } from "react-icons/io5";
 import { useRoute } from '../../../../vendor/tightenco/ziggy/';
 import { Toaster, toast } from 'sonner';
@@ -12,6 +12,10 @@ const ArrowLeft = () => (
 
 const ArrowRight = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 19"></polyline></svg>
+);
+
+const CheckIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
 );
 
 function Orders({ orders }) {
@@ -59,8 +63,24 @@ function Orders({ orders }) {
         });
     };
 
-    // FIXED: Defines which order_statuses should block the Refund button from rendering
-    const blockedRefundStatuses = ['Under Inspection', 'Refund Requested', 'Refund Approved', 'Refunded'];
+    const handleConfirmPayment = (orderId) => {
+        const confirmed = window.confirm("Are you sure you want to finalize this order? This confirms the delivery driver has handed over the payment.");
+        if (confirmed) {
+            router.post(route('customer.orders.finalizePayment', { id: orderId }), {}, {
+                preserveScroll: true,
+            });
+        }
+    };
+
+    // Expanded to include new delivery workflow statuses
+    const blockedRefundStatuses = [
+        'Under Inspection', 
+        'Refund Requested', 
+        'Refund Approved', 
+        'Refunded',
+        'To be delivered',
+        'Delivered'
+    ];
 
     return (
         <div className="container-fluid py-4 px-4" style={{ minHeight: '100vh', backgroundColor: '#F5F5FB', fontFamily: "'Poppins', sans-serif" }}>
@@ -92,7 +112,7 @@ function Orders({ orders }) {
                                 <th className="py-3 fw-bolder" style={{ fontSize: '13px' }}>Order ID</th>
                                 <th className="py-3 fw-bolder" style={{ fontSize: '13px' }}>Order Qty</th>
                                 <th className="py-3 fw-bolder" style={{ fontSize: '13px' }}>Total Pieces</th>
-                                <th className="py-3 fw-bolder" style={{ fontSize: '13px' }}>Source Batches</th>
+                                <th className="py-3 fw-bolder" style={{ fontSize: '13px' }}>Type</th>
                                 <th className="py-3 fw-bolder" style={{ fontSize: '13px' }}>Total Amount</th>
                                 <th className="py-3 fw-bolder" style={{ fontSize: '13px' }}>Date</th>
                                 <th className="py-3 fw-bolder" style={{ fontSize: '13px' }}>Status</th>
@@ -111,38 +131,56 @@ function Orders({ orders }) {
                                     const totalPiecesBought = order.details ? order.details.reduce((sum, d) => 
                                         sum + (parseInt(d.quantity) * parseInt(d.multiplier)), 0) : 0;
 
-                                    const allUsedBatches = order.details 
-                                        ? [...new Set(order.details.flatMap(d => d.batch_ids ? d.batch_ids.split(', ') : []))].join(', ')
-                                        : 'N/A';
-
                                     // Safely grab status handling both potential names
-                                    const displayStatus = order.order_status || order.status || 'Completed';
+                                    const displayStatus = order.order_status || order.status || 'Completed - Shop';
+
+                                    // Dynamic badge coloring
+                                    let badgeClass = 'bg-success-subtle text-success';
+                                    if (displayStatus === 'To be delivered') badgeClass = 'bg-info text-white';
+                                    if (displayStatus === 'Delivered') badgeClass = 'bg-primary text-white';
+                                    if (displayStatus === 'Refunded') badgeClass = 'bg-danger text-white';
+                                    if (['Under Inspection', 'Refund Requested'].includes(displayStatus)) badgeClass = 'bg-warning text-dark';
 
                                     return (
                                         <tr key={order.id} style={{ borderBottom: index !== orders.data.length - 1 ? '1px solid #F0F0F5' : 'none' }}>
                                             <td className="py-3 fw-bolder text-dark" style={{ fontSize: '13px' }}>{orderId ? `#TUNGAL${orderId}` : 'N/A'}</td>
                                             <td className="py-3 fw-bold text-dark" style={{ fontSize: '13px' }}>{order.quantity} Units</td>
                                             <td className="py-3 text-primary fw-bold" style={{ fontSize: '13px' }}>{totalPiecesBought} Pieces</td>
-                                            <td className="py-3 text-muted" style={{ fontSize: '11px' }}>{allUsedBatches || 'N/A'}</td>
+                                            
+                                            {/* ADDED: Order Type Display */}
+                                            <td className="py-3 fw-bold" style={{ fontSize: '13px', color: order.order_type === 'Delivery' ? '#db8435' : '#707584' }}>
+                                                {order.order_type || 'Walk-in'}
+                                            </td>
+
                                             <td className="py-3 text-dark fw-bold" style={{ fontSize: '13px' }}>₱{order.total}</td>
                                             <td className="py-3 text-dark" style={{ fontSize: '12px' }}>{formattedDate}</td>
                                             <td className="py-3">
-                                                <span className={`badge px-3 py-2 rounded-pill ${
-                                                    blockedRefundStatuses.includes(displayStatus) 
-                                                        ? (displayStatus === 'Refunded' ? 'bg-danger' : 'bg-warning text-dark') 
-                                                        : 'bg-success-subtle text-success'
-                                                }`} style={{ fontSize: '11px' }}>
+                                                <span className={`badge px-3 py-2 rounded-pill ${badgeClass}`} style={{ fontSize: '11px' }}>
                                                     {displayStatus}
                                                 </span>
                                             </td>
                                             <td className="py-3">
                                                 <div className="d-flex align-items-center justify-content-center gap-2">
+                                                    
                                                     {orderId && (
                                                         <Link href={route('customer.invoice', { order_id: orderId })} className="btn btn-sm btn-light shadow-sm d-flex align-items-center justify-content-center" style={{ width: '34px', height: '34px', borderRadius: '8px' }} title="View Invoice">
                                                             <IoReceipt className="fs-5 text-dark" />
                                                         </Link>
                                                     )}
-                                                    {/* FIXED: Conditionally hide Refund button if it's already pending/refunded */}
+                                                    
+                                                    {/* ADDED: Cashier Handoff Confirmation Button */}
+                                                    {displayStatus === 'Delivered' && (
+                                                        <button 
+                                                            onClick={() => handleConfirmPayment(order.id)} 
+                                                            className="btn btn-sm text-white d-flex align-items-center gap-1 shadow-sm" 
+                                                            style={{ backgroundColor: '#28A745', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', border: 'none' }} 
+                                                            title="Confirm Payment Received from Driver"
+                                                        >
+                                                            <CheckIcon /> Receive Payment
+                                                        </button>
+                                                    )}
+
+                                                    {/* Hide Refund button if it's pending/refunded OR currently in the delivery process */}
                                                     {!blockedRefundStatuses.includes(displayStatus) && (
                                                         <button onClick={() => openReturnModal(orderId)} className="btn btn-sm text-white" style={{ backgroundColor: '#D9534F', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', border: 'none' }} title="Request Refund">
                                                             Refund

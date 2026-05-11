@@ -14,18 +14,23 @@ function Cart({ carts, total, products }) {
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // INJECTED: Added Discount variables mapped exactly to your Order DB
+  // INJECTED: Added Order Type, Customer Details, and Payment Tracking
   const { data, setData, post, processing, errors, reset } = useForm({
     cart_id: [],
     total: 0,
     cash_received: '',
     discount_percentage: '',
-    discount_amount: 0
+    discount_amount: 0,
+    order_type: 'Walk-in',
+    customer_name: '',
+    customer_address: '',
+    payment_method: 'Cash',
+    reference_number: ''
   });
 
   const numericTotal = parseFloat(total) || 0;
   
-  // INJECTED: Live Discount Math
+  // Live Discount Math
   const discountAmount = data.discount_percentage ? (numericTotal * (Number(data.discount_percentage) / 100)) : 0;
   const grandTotal = numericTotal - discountAmount;
 
@@ -56,7 +61,14 @@ function Cart({ carts, total, products }) {
   };
 
   const numericCash = parseFloat(data.cash_received) || 0;
-  const isPaymentValid = numericCash >= grandTotal && data.cash_received !== '';
+  
+  // Validation Logic based on new constraints
+  const isDeliveryValid = data.order_type === 'Walk-in' || (data.order_type === 'Delivery' && data.customer_address.trim() !== '');
+  const isPaymentMethodValid = data.payment_method === 'Cash' || (['Gcash', 'Bank Transfer'].includes(data.payment_method) && data.reference_number.trim() !== '');
+  // If cash, must have enough. If Gcash/Bank, assume exact amount passed via API/validation rules, but local state can enforce grandTotal match
+  const isCashValid = data.payment_method === 'Cash' ? (numericCash >= grandTotal && data.cash_received !== '') : (numericCash >= grandTotal);
+  
+  const isPaymentValid = isDeliveryValid && isPaymentMethodValid && isCashValid;
   const changeAmount = isPaymentValid ? (numericCash - grandTotal).toFixed(2) : '0.00';
 
   return (
@@ -64,7 +76,7 @@ function Cart({ carts, total, products }) {
       <Head title="Sales Order Details" />
 
       {/* BACKGROUND (BLURRED) */}
-      <div className="container-fluid py-5 px-4" style={{ filter: 'blur(3px)', opacity: 0.5, pointerEvents: 'none', userSelect: 'none' }}>
+      <div className="container-fluid py-5 px-4" style={{ filter: showPaymentModal ? 'blur(3px)' : 'none', opacity: showPaymentModal ? 0.5 : 1, transition: 'all 0.3s ease' }}>
         <div className="mb-2">
           <h4 className="text-muted fw-normal" style={{ color: '#1E1E1E' }}>
             Hi, {auth?.user ? auth.user.firstname : 'User'}!
@@ -121,7 +133,6 @@ function Cart({ carts, total, products }) {
                                 <img src={`/storage/${item.product.image}`} alt={item.product.product_name} className="object-fit-cover" style={{ width: '80px', height: '80px', borderRadius: '10px' }} />
                                 <div>
                                     <span className="fw-bold fs-5 text-dark d-block text-truncate">{item.product.product_name}</span>
-                                    {/* INJECTED: Displays the exact custom type mapped */}
                                     <small className="text-muted d-block">{item.type_name} (x{item.multiplier})</small>
                                 </div>
                               </div>
@@ -132,7 +143,6 @@ function Cart({ carts, total, products }) {
                               </div>
 
                               <div className="d-flex align-items-center justify-content-end gap-4" style={{ width: '40%' }}>
-                                {/* INJECTED: Uses your DB subtotal to respect the multiplier math correctly */}
                                 <span className="fw-bold fs-4" style={{ color: '#6C63FF' }}>₱{item.subtotal}</span>
                                 <button onClick={() => handleRemove(item.id)} className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: '45px', height: '45px' }}>
                                     <TrashIcon />
@@ -158,7 +168,6 @@ function Cart({ carts, total, products }) {
                       <div className="card-body p-4 d-flex flex-column h-100">
                         <h5 className="fw-bold mb-4" style={{ color: '#1E1E1E' }}>Order Summary</h5>
                         
-                        {/* INJECTED: Discount Interface */}
                         <div className="mb-4">
                             <label className="form-label text-muted fw-bold mb-2" style={{ fontSize: '13px' }}>Apply Discount (%)</label>
                             <div className="input-group">
@@ -180,7 +189,6 @@ function Cart({ carts, total, products }) {
                           <span className="fw-bold text-dark">₱{numericTotal.toFixed(2)}</span>
                         </div>
                         
-                        {/* INJECTED: Live Math Reductions */}
                         {discountAmount > 0 && (
                             <div className="d-flex justify-content-between mb-3 text-danger">
                                 <span className="fw-semibold">Discount (-{data.discount_percentage}%)</span>
@@ -188,10 +196,7 @@ function Cart({ carts, total, products }) {
                             </div>
                         )}
 
-                        <div className="d-flex justify-content-between mb-4">
-                          <span className="text-muted fw-semibold">Tax (VAT Included)</span>
-                          <span className="fw-bold text-dark">₱0.00</span>
-                        </div>
+                        {/* REPLACED: Tax Row Removed */}
 
                         <hr style={{ borderColor: '#dee2e6' }} />
                         <div className="d-flex justify-content-between align-items-center my-4">
@@ -205,7 +210,7 @@ function Cart({ carts, total, products }) {
                           className="btn w-100 fw-bold text-white py-3 mt-auto"
                           style={{ backgroundColor: '#6C63FF', borderRadius: '10px', fontSize: '1.1rem' }}
                         >
-                          Proceed to Payment
+                          Proceed to Checkout
                         </button>
                       </div>
                     </div>
@@ -218,54 +223,136 @@ function Cart({ carts, total, products }) {
         </div>
       )}
 
-      {/* FOREGROUND DIALOG: PROCESS PAYMENT */}
+      {/* FOREGROUND DIALOG: PROCESS PAYMENT & DELIVERY */}
       {showPaymentModal && (
         <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1050 }} tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '15px', overflow: 'hidden' }}>
               <div className="modal-header border-0 text-white" style={{ backgroundColor: '#7978E9' }}>
-                <h5 className="modal-title fw-bold">Process Payment</h5>
+                <h5 className="modal-title fw-bold">Checkout & Payment</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowPaymentModal(false)}></button>
               </div>
               <div className="modal-body p-4">
                 <form onSubmit={submitPayment}>
-                  <div className="mb-4 text-center">
-                    <p className="text-muted mb-1" style={{ fontSize: '13px' }}>Amount Due</p>
-                    <h2 className="fw-bolder m-0" style={{ color: '#6C63FF', fontSize: '38px' }}>₱{grandTotal.toFixed(2)}</h2>
-                  </div>
                   
-                  <div className="mb-3">
-                    <label className="form-label fw-bold" style={{ color: '#1E1E1E' }}>Cash Received (₱)</label>
-                    <div className="input-group input-group-lg">
-                      <span className="input-group-text bg-light border-end-0 fw-bold text-muted">₱</span>
-                      <input 
-                        type="number" 
-                        className="form-control bg-light border-start-0 fw-bold text-dark" 
-                        placeholder="0.00"
-                        step="0.01"
-                        min={grandTotal}
-                        required
-                        autoFocus
-                        value={data.cash_received}
-                        onChange={(e) => setData('cash_received', e.target.value)}
-                      />
+                  <div className="row g-4">
+                    {/* LEFT COLUMN: Customer & Delivery Info */}
+                    <div className="col-12 col-md-6 border-end">
+                      <h6 className="fw-bold mb-3" style={{ color: '#1E1E1E' }}>Order Information</h6>
+                      
+                      <div className="mb-3">
+                        <label className="form-label fw-bold text-dark" style={{ fontSize: '14px' }}>Order Type</label>
+                        <select 
+                            className="form-select shadow-none bg-light" 
+                            style={{ borderRadius: '8px' }}
+                            value={data.order_type}
+                            onChange={(e) => setData('order_type', e.target.value)}
+                        >
+                            <option value="Walk-in">Walk-in (Shop)</option>
+                            <option value="Delivery">Delivery</option>
+                        </select>
+                      </div>
+
+                      <div className="mb-3">
+                        <label className="form-label fw-bold text-dark" style={{ fontSize: '14px' }}>Customer Name (Optional for Walk-in)</label>
+                        <input 
+                            type="text" 
+                            className="form-control shadow-none bg-light" 
+                            style={{ borderRadius: '8px' }}
+                            placeholder="John Doe"
+                            value={data.customer_name}
+                            onChange={(e) => setData('customer_name', e.target.value)}
+                        />
+                      </div>
+
+                      {data.order_type === 'Delivery' && (
+                        <div className="mb-3">
+                          <label className="form-label fw-bold text-danger" style={{ fontSize: '14px' }}>Delivery Address *</label>
+                          <textarea 
+                              className="form-control shadow-none bg-light" 
+                              style={{ borderRadius: '8px', resize: 'none' }}
+                              rows="3"
+                              placeholder="123 Flower Street, Garden City"
+                              value={data.customer_address}
+                              onChange={(e) => setData('customer_address', e.target.value)}
+                              required={data.order_type === 'Delivery'}
+                          ></textarea>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* RIGHT COLUMN: Payment Processing */}
+                    <div className="col-12 col-md-6">
+                      <div className="mb-4 text-center">
+                        <p className="text-muted mb-1" style={{ fontSize: '13px' }}>Amount Due</p>
+                        <h2 className="fw-bolder m-0" style={{ color: '#6C63FF', fontSize: '38px' }}>₱{grandTotal.toFixed(2)}</h2>
+                      </div>
+                      
+                      <div className="mb-3">
+                        <label className="form-label fw-bold" style={{ color: '#1E1E1E', fontSize: '14px' }}>Mode of Payment</label>
+                        <select 
+                            className="form-select shadow-none bg-light" 
+                            style={{ borderRadius: '8px' }}
+                            value={data.payment_method}
+                            onChange={(e) => setData('payment_method', e.target.value)}
+                        >
+                            <option value="Cash">Cash</option>
+                            <option value="Gcash">GCash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                        </select>
+                      </div>
+
+                      {['Gcash', 'Bank Transfer'].includes(data.payment_method) && (
+                        <div className="mb-3">
+                          <label className="form-label fw-bold text-danger" style={{ fontSize: '14px' }}>Reference Number *</label>
+                          <input 
+                              type="text" 
+                              className="form-control shadow-none bg-light" 
+                              style={{ borderRadius: '8px' }}
+                              placeholder="e.g. 000123456789"
+                              value={data.reference_number}
+                              onChange={(e) => setData('reference_number', e.target.value)}
+                              required
+                          />
+                        </div>
+                      )}
+
+                      <div className="mb-3">
+                        <label className="form-label fw-bold" style={{ color: '#1E1E1E', fontSize: '14px' }}>Amount Received (₱)</label>
+                        <div className="input-group">
+                          <span className="input-group-text bg-light border-end-0 fw-bold text-muted">₱</span>
+                          <input 
+                            type="number" 
+                            className="form-control bg-light border-start-0 fw-bold text-dark" 
+                            placeholder="0.00"
+                            step="0.01"
+                            min={grandTotal}
+                            required
+                            value={data.cash_received}
+                            onChange={(e) => setData('cash_received', e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="form-label fw-bold" style={{ color: '#1E1E1E', fontSize: '14px' }}>Change</label>
+                        <div className="input-group">
+                          <span className="input-group-text bg-light border-end-0 fw-bold text-muted">₱</span>
+                          <input type="text" className="form-control bg-light border-start-0 fw-bold text-success" value={changeAmount} readOnly />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mb-4">
-                    <label className="form-label fw-bold" style={{ color: '#1E1E1E' }}>Change</label>
-                    <div className="input-group input-group-lg">
-                      <span className="input-group-text bg-light border-end-0 fw-bold text-muted">₱</span>
-                      <input type="text" className="form-control bg-light border-start-0 fw-bold text-success" value={changeAmount} readOnly />
-                    </div>
-                  </div>
+                  <hr style={{ borderColor: '#dee2e6' }} />
 
-                  <div className="d-flex justify-content-end gap-2">
+                  <div className="d-flex justify-content-end gap-2 mt-3">
                     <button type="button" className="btn btn-light fw-bold text-muted px-4" onClick={() => setShowPaymentModal(false)} style={{ borderRadius: '10px' }}>Cancel</button>
                     <button type="submit" className="btn fw-bold text-white px-4" style={{ backgroundColor: '#6C63FF', borderRadius: '10px' }} disabled={processing || !isPaymentValid}>
-                      {processing ? 'Processing...' : 'Confirm Payment'}
+                      {processing ? 'Processing...' : 'Confirm Transaction'}
                     </button>
                   </div>
+
                 </form>
               </div>
             </div>

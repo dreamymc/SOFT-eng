@@ -44,10 +44,24 @@ class OrderController extends Controller
         
         if ($request->hasFile('proof_image')) {
             $path = $request->file('proof_image')->store('proofs', 'public');
+            // Marks the driver phase as complete
             $order->update(['delivery_proof' => $path, 'order_status' => 'Delivered']);
         }
         
         return redirect()->route('delivery.dashboard');
+    }
+
+    // INJECTED: Cashier confirms payment received from driver
+    public function finalizePayment(Request $request, $id) {
+        $order = Order::findOrFail($id);
+        
+        if ($order->order_status !== 'Delivered') {
+            abort(400, 'Bad Request: Cannot finalize payment. Order is not marked as Delivered.');
+        }
+
+        $order->update(['order_status' => 'Completed - Delivered']);
+
+        return redirect()->back()->with('success', 'Payment confirmed and order finalized.');
     }
 
     // Loads the list of all orders

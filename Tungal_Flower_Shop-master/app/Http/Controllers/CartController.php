@@ -59,9 +59,22 @@ class CartController extends Controller
     }
 
     public function checkout(Request $request){
+        // --- REPLACED: Validation rules updated to handle the new payment and delivery paradigm ---
         $fields = $request->validate([
             'cart_id' => 'required|array',
             'total' => 'required|numeric', 
+            
+            // New Customer & Delivery Fields
+            'order_type' => 'required|in:Walk-in,Delivery',
+            'customer_name' => 'nullable|string|max:255',
+            'customer_address' => 'required_if:order_type,Delivery|nullable|string|max:500',
+            
+            // New Payment Method Fields
+            'payment_method' => 'required|in:Cash,Gcash,Bank Transfer',
+            'reference_number' => 'required_if:payment_method,Gcash,Bank Transfer|nullable|string|max:255',
+            
+            // Note: cash_received is only strictly required if paying by Cash, 
+            // but we leave it as required|numeric since non-cash methods might pass the exact total.
             'cash_received' => 'required|numeric',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
             'discount_amount' => 'nullable|numeric|min:0',
@@ -71,20 +84,30 @@ class CartController extends Controller
 
         if($fields['cash_received'] < $fields['total']){
             // 400 mapped gap: Invalid Payment
-            abort(400, "Bad Request: Insufficient cash received to complete transaction.");
+            abort(400, "Bad Request: Insufficient payment received to complete transaction.");
         }
 
         try {
             DB::beginTransaction();
+            
+            // Determine initial order status based on the selected order type
+            $initialStatus = ($fields['order_type'] === 'Delivery') ? 'To be delivered' : 'Completed - Shop';
 
+            // --- ADDED: Writing the new fields into the Order creation ---
             $store_order = Order::create([
                 'user_id' => $user->id,
+                'customer_name' => $fields['customer_name'] ?? null,
+                'customer_address' => $fields['customer_address'] ?? null,
+                'order_type' => $fields['order_type'],
+                'payment_method' => $fields['payment_method'],
+                'reference_number' => $fields['reference_number'] ?? null,
                 'quantity' => 0, 
                 'total' => $fields['total'],
                 'discount_percentage' => $fields['discount_percentage'] ?? null,
                 'discount_amount' => $fields['discount_amount'] ?? 0,
                 'cash_recieved' => $fields['cash_received'],
                 'change' => $fields['cash_received'] - $fields['total'],
+                'order_status' => $initialStatus
             ]);
             
             $quantity = 0;
