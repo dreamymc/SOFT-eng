@@ -51,7 +51,7 @@ class OrderController extends Controller
         return redirect()->route('delivery.dashboard');
     }
 
-    // INJECTED: Cashier confirms payment received from driver
+    // Cashier confirms payment received from driver
     public function finalizePayment(Request $request, $id) {
         $order = Order::findOrFail($id);
         
@@ -74,7 +74,8 @@ class OrderController extends Controller
     // Loads the specific details for one order
     public function deliveryDetails($id)
     {
-        $order = \App\Models\Order::findOrFail($id);
+        // INJECTED: Eager loading 'details.product' so the delivery driver can see the exact items
+        $order = \App\Models\Order::with('details.product')->findOrFail($id);
         return inertia('Delivery/Details', ['order' => $order]);
     }
 }
