@@ -227,7 +227,7 @@ const CreatePayrollModal = ({ isOpen, onClose, employees }) => {
 const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
     if (!isOpen || !payrollRecord) return null;
 
-    const isApproved = payrollRecord.status === 'Approved';
+    const isFinalized = ['Approved', 'Rejected'].includes(payrollRecord.status);
 
     const { data, setData, put, processing, reset, transform } = useForm({
         employee_id: payrollRecord.employee_id || payrollRecord.user_id || '',
@@ -277,7 +277,7 @@ const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
 
     // Auto-calculate
     useEffect(() => {
-        if (isApproved) return;
+        if (isFinalized) return;
         const basePay = (parseFloat(data.rate) || 0) * (parseFloat(data.days_worked) || 0);
         const ot = parseFloat(data.total_ot_pay) || 0;
         const ecola = parseFloat(data.ecola) || 0;
@@ -289,7 +289,7 @@ const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
         if (parseFloat(data.gross_pay || 0) !== gross) {
             setData('gross_pay', gross > 0 ? gross.toFixed(2) : '');
         }
-    }, [data.rate, data.days_worked, data.total_ot_pay, data.ecola, data.allowance, data.other_pay, isApproved]);
+    }, [data.rate, data.days_worked, data.total_ot_pay, data.ecola, data.allowance, data.other_pay, isFinalized]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -327,7 +327,7 @@ const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
                         </div>
                         <div className="col-md-4 d-flex align-items-center gap-3">
                             <span className="fw-medium text-dark" style={{ fontSize: '14px', minWidth: '90px' }}>Employee</span>
-                            <select className={`form-select shadow-none flex-grow-1 ${isApproved ? 'bg-light' : ''}`} value={data.employee_id} onChange={(e) => setData('employee_id', e.target.value)} disabled={isApproved} style={{ borderRadius: '8px', border: '1px solid #DEE2E6' }}>
+                            <select className={`form-select shadow-none flex-grow-1 ${isFinalized ? 'bg-light' : ''}`} value={data.employee_id} onChange={(e) => setData('employee_id', e.target.value)} disabled={isFinalized} style={{ borderRadius: '8px', border: '1px solid #DEE2E6' }}>
                                 <option value="" disabled>Select Employee</option>
                                 {employees && employees.length > 0 ? (
                                     employees.map(emp => (
@@ -344,7 +344,7 @@ const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
                         </div>
                         <div className="col-md-4 d-flex align-items-center gap-3">
                             <span className="fw-medium text-dark" style={{ fontSize: '14px', minWidth: '90px' }}>Salary Method</span>
-                            <select className={`form-select shadow-none flex-grow-1 ${isApproved ? 'bg-light' : ''}`} value={data.salary_method} onChange={(e) => setData('salary_method', e.target.value)} disabled={isApproved} style={{ borderRadius: '8px', border: '1px solid #DEE2E6' }}>
+                            <select className={`form-select shadow-none flex-grow-1 ${isFinalized ? 'bg-light' : ''}`} value={data.salary_method} onChange={(e) => setData('salary_method', e.target.value)} disabled={isFinalized} style={{ borderRadius: '8px', border: '1px solid #DEE2E6' }}>
                                 <option value="Cash">Cash</option>
                                 <option value="Bank">Bank</option>
                             </select>
@@ -364,11 +364,11 @@ const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
                                             {getFieldLabel(field)}
                                         </span>
                                         {['days_worked', 'regular_ot'].includes(field) ? (
-                                            <input type="number" className={`form-control shadow-none ${isApproved ? 'bg-light' : ''}`} value={data[field]} onChange={(e) => setData(field, e.target.value)} readOnly={isApproved} style={{ borderRadius: '8px' }} />
+                                            <input type="number" className={`form-control shadow-none ${isFinalized ? 'bg-light' : ''}`} value={data[field]} onChange={(e) => setData(field, e.target.value)} readOnly={isFinalized} style={{ borderRadius: '8px' }} />
                                         ) : (
                                             <div className="input-group">
                                                 <span className="input-group-text bg-white border-end-0 text-muted" style={{ borderRadius: '8px 0 0 8px' }}>₱</span>
-                                                <input type="number" className={`form-control shadow-none border-start-0 ${field === 'total_ot_pay' ? 'fw-bold' : ''} ${isApproved ? 'bg-light' : ''}`} value={data[field]} onChange={(e) => setData(field, e.target.value)} readOnly={isApproved} style={{ borderRadius: '0 8px 8px 0' }} />
+                                                <input type="number" className={`form-control shadow-none border-start-0 ${field === 'total_ot_pay' ? 'fw-bold' : ''} ${isFinalized ? 'bg-light' : ''}`} value={data[field]} onChange={(e) => setData(field, e.target.value)} readOnly={isFinalized} style={{ borderRadius: '0 8px 8px 0' }} />
                                             </div>
                                         )}
                                     </div>
@@ -379,7 +379,7 @@ const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
                                 <button type="button" onClick={onClose} className="btn fw-bold text-white shadow-none" style={{ backgroundColor: '#D9534F', borderRadius: '8px', width: '120px', height: '42px' }}>
                                     Cancel
                                 </button>
-                                {!isApproved && (
+                                {!isFinalized && (
                                     <button type="submit" disabled={processing} className="btn fw-bold text-white shadow-sm border-0" style={{ backgroundColor: '#EAA144', borderRadius: '8px', width: '120px', height: '42px' }}>
                                         {processing ? 'Updating...' : 'Update'}
                                     </button>
@@ -400,7 +400,7 @@ const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
                                         </span>
                                         <div className="input-group">
                                             <span className="input-group-text bg-white border-end-0 text-muted" style={{ borderRadius: '8px 0 0 8px' }}>₱</span>
-                                            <input type="number" className={`form-control shadow-none border-start-0 ${isApproved ? 'bg-light' : ''}`} value={data[field]} onChange={(e) => setData(field, e.target.value)} readOnly={isApproved} style={{ borderRadius: '0 8px 8px 0' }} />
+                                            <input type="number" className={`form-control shadow-none border-start-0 ${isFinalized ? 'bg-light' : ''}`} value={data[field]} onChange={(e) => setData(field, e.target.value)} readOnly={isFinalized} style={{ borderRadius: '0 8px 8px 0' }} />
                                         </div>
                                     </div>
                                 ))}
@@ -628,7 +628,7 @@ export default function Payroll({ payrolls, employees = [] }) {
                                                     <ViewIcon /> View
                                                 </button>
                                                 
-                                                {row.status !== 'Approved' && (
+                                                {!['Approved', 'Rejected'].includes(row.status) && (
                                                     <button 
                                                         onClick={() => openUpdateModal(row)}
                                                         className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-2 fw-semibold text-white shadow-sm border-0" 

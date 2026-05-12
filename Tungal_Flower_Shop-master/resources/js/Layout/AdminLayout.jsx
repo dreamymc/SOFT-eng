@@ -68,7 +68,7 @@ export default function AdminLayout({ children }) {
                             </Link>
                         )}
                         
-                        {role === 'Admin' && (
+                        {(role === 'Admin' || role === 'Manager') && (
                             <Link href={route('admin.employee')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none sidebar-item-custom" style={route().current('admin.employee') ? activeLinkStyle : inactiveLinkStyle}>
                                 <IoPeople className="fs-5" /> Employee
                             </Link>
@@ -150,7 +150,7 @@ export default function AdminLayout({ children }) {
                                 </Link>
                             )}
 
-                            {role === 'Admin' && (
+                            {(role === 'Admin' || role === 'Manager') && (
                                 <Link href={route('admin.employee')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none" style={route().current('admin.employee') ? activeLinkStyle : inactiveLinkStyle}>
                                     <IoPeople /> Employee
                                 </Link>
