@@ -96,6 +96,8 @@ Route::middleware(['auth',AdminMiddleware::class])->group(function () {
     ->name('inventory.updateProduct');
     // ----------------------------------------------------------------------------
 
-    Route::post('/admin/logout', [UserController::class,'adminLogout'])->withoutMiddleware('auth')
+    // REPLACED: Pointing this directly to the proven 'employeeLogout' function to definitively destroy the session.
+    // Removed the 'withoutMiddleware' override so it properly handles the authenticated user termination.
+    Route::post('/admin/logout', [UserController::class,'employeeLogout'])
     ->name('admin.logout');
 });

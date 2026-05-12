@@ -15,12 +15,15 @@ function Cart({ carts, total, products }) {
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  // INJECTED: Authorization check dictating UI boundaries
+  const canDiscount = ['Admin', 'Manager', 'Owner', 'Cashier'].includes(auth?.user?.role);
+
+
+  // REPLACED: Stripped server-calculated fields (total, discount_amount) from Network Payload
   const { data, setData, post, processing, errors, reset } = useForm({
     cart_id: [],
-    total: 0,
     cash_received: '',
     discount_percentage: '',
-    discount_amount: 0,
     order_type: 'Walk-in',
     customer_name: '',
     customer_address: '',
@@ -28,19 +31,13 @@ function Cart({ carts, total, products }) {
     reference_number: ''
   });
 
-  // Automatically trigger toasts when the backend sends flash messages or resets
   useEffect(() => {
-    if (flash?.error) {
-      toast.error(flash.error);
-    }
-    if (flash?.success) {
-      toast.success(flash.success);
-    }
+    if (flash?.error) toast.error(flash.error);
+    if (flash?.success) toast.success(flash.success);
   }, [flash]);
 
+  // UI Math variables (never transmitted)
   const numericTotal = parseFloat(total) || 0;
-  
-  // Live Discount Math
   const discountAmount = data.discount_percentage ? (numericTotal * (Number(data.discount_percentage) / 100)) : 0;
   const grandTotal = numericTotal - discountAmount;
 
@@ -52,8 +49,6 @@ function Cart({ carts, total, products }) {
     setData(prev => ({
       ...prev,
       cart_id: cartList.map(item => item.id),
-      total: grandTotal,
-      discount_amount: discountAmount,
       cash_received: ''
     }));
     setShowPaymentModal(true);
@@ -192,10 +187,12 @@ function Cart({ carts, total, products }) {
                                     min="0" max="100"
                                     value={data.discount_percentage} 
                                     onChange={(e) => setData('discount_percentage', e.target.value)} 
-                                    disabled={cartList.length === 0}
+                                    disabled={cartList.length === 0 || !canDiscount}
                                 />
                                 <span className="input-group-text bg-light text-muted fw-bold">%</span>
                             </div>
+                            {/* INJECTED: UI Feedback to explicitly explain the disabled state */}
+                            {!canDiscount && <small className="text-danger mt-1 d-block" style={{ fontSize: '12px' }}>* Requires Manager/Admin privileges</small>}
                         </div>
 
                         <div className="d-flex justify-content-between mb-3">
