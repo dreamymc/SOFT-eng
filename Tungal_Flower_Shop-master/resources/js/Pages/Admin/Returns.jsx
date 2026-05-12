@@ -24,6 +24,13 @@ const ArrowRight = () => (
     </svg>
 );
 
+// INJECTED: Centralized Status Badge styling logic
+const getStatusBadge = (status) => {
+    if (status === 'Approved' || status === 'Refunded') return 'bg-success text-white';
+    if (status === 'Rejected') return 'bg-danger text-white';
+    return 'bg-warning text-dark';
+};
+
 // --- VIEW DETAILS MODAL ---
 const ViewReturnModal = ({ isOpen, onClose, record }) => {
     if (!isOpen || !record) return null;
@@ -36,9 +43,6 @@ const ViewReturnModal = ({ isOpen, onClose, record }) => {
     
     // Extracting Cashier safely
     const cashierName = req.cashier ? `${req.cashier.firstname} ${req.cashier.lastname}` : 'Unknown Cashier';
-
-    // Synchronize Status Badge Color
-    const isRefundedOrApproved = ['Approved', 'Refunded'].includes(record.status);
 
     return (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ backgroundColor: 'rgba(20, 20, 30, 0.6)', zIndex: 1050 }}>
@@ -62,12 +66,22 @@ const ViewReturnModal = ({ isOpen, onClose, record }) => {
                         </div>
                         <div className="text-end">
                             <span className="text-muted fw-bold d-block mb-1" style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</span>
-                            {/* FIXED: Synced Badge Colors */}
-                            <span className={`badge px-3 py-2 rounded-pill fs-6 ${isRefundedOrApproved ? 'bg-danger text-white' : 'bg-warning text-dark'}`}>
+                            {/* FIXED: Synced Badge Colors using ternary helper */}
+                            <span className={`badge px-3 py-2 rounded-pill fs-6 ${getStatusBadge(record.status)}`}>
                                 {record.status === 'Approved' ? 'Refunded' : record.status}
                             </span>
                         </div>
                     </div>
+
+                    {/* INJECTED: Display rejection reason if applicable */}
+                    {record.status === 'Rejected' && req.rejection_reason && (
+                        <div className="mb-4">
+                            <span className="text-danger fw-bold d-block mb-2" style={{ fontSize: '13px' }}>Rejection Reason (Admin)</span>
+                            <div className="p-3 rounded bg-light text-dark fw-medium border border-danger" style={{ minHeight: '60px' }}>
+                                {req.rejection_reason}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Timeline & Personnel Grid */}
                     <div className="row g-4 mb-4">
@@ -106,7 +120,7 @@ const ViewReturnModal = ({ isOpen, onClose, record }) => {
 
                     {/* Reason */}
                     <div className="mb-4">
-                        <span className="text-muted fw-medium d-block mb-2" style={{ fontSize: '13px' }}>Reason for Return</span>
+                        <span className="text-muted fw-medium d-block mb-2" style={{ fontSize: '13px' }}>Reason for Return (Cashier Notes)</span>
                         <div className="p-3 rounded bg-light text-dark fw-medium" style={{ border: '1px solid #EBEAEE', minHeight: '80px' }}>
                             {record.reason}
                         </div>
@@ -196,8 +210,6 @@ export default function Returns({ returns }) {
                         <tbody>
                             {tableRows.length > 0 ? (
                                 tableRows.map((row, index) => {
-                                    // FIXED: Sync Status Logic
-                                    const isRefundedOrApproved = ['Approved', 'Refunded'].includes(row.status);
                                     const displayStatus = row.status === 'Approved' ? 'Refunded' : row.status;
 
                                     return (
@@ -212,8 +224,8 @@ export default function Returns({ returns }) {
                                             <td className="py-3 fw-bold text-dark" style={{ fontSize: '14px' }}>{row.quantity}</td>
                                             <td className="py-3 text-dark" style={{ fontSize: '14px' }}>{row.reason}</td>
                                             <td className="py-3">
-                                                {/* FIXED: Synced Badge Colors */}
-                                                <span className={`badge px-3 py-2 rounded-pill ${isRefundedOrApproved ? 'bg-danger text-white' : 'bg-warning text-dark'}`}>
+                                                {/* FIXED: Applied standardized status badge */}
+                                                <span className={`badge px-3 py-2 rounded-pill ${getStatusBadge(row.status)}`}>
                                                     {displayStatus}
                                                 </span>
                                             </td>

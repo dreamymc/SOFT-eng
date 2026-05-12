@@ -17,7 +17,8 @@ class ReturnRequest extends Model
         'user_id',
         'reason',
         'refund_method',
-        'status'
+        'status',
+        'rejection_reason'
     ];
 
     // Links to the Order

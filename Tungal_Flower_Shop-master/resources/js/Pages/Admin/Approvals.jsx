@@ -38,15 +38,22 @@ const ReviewPayrollModal = ({ isOpen, onClose, record }) => {
     if (!isOpen || !record) return null;
 
     const handleAction = (action) => {
+        let payload = {};
+
         if (action === 'approve') {
             const confirmed = window.confirm("Are you sure you want to approve this payroll?");
             if (!confirmed) return;
         } else if (action === 'reject') {
-            const confirmed = window.confirm("Are you sure you want to reject this payroll?");
-            if (!confirmed) return;
+            // FIXED: Intercept rejection to demand a reason before submission
+            const reason = window.prompt("Please provide a reason for rejecting this payroll:");
+            if (!reason || reason.trim() === '') {
+                alert("A rejection reason is strictly required.");
+                return;
+            }
+            payload.rejection_reason = reason;
         }
 
-        router.put(route('admin.approvals.payroll', { id: record.id, action }), {}, {
+        router.put(route('admin.approvals.payroll', { id: record.id, action }), payload, {
             preserveScroll: true,
             onSuccess: () => onClose()
         });
@@ -100,16 +107,22 @@ const ReviewReturnModal = ({ isOpen, onClose, record }) => {
     if (!isOpen || !record) return null;
 
     const handleAction = (action) => {
-        // FIXED: ADDED EXPLICIT WARNING ABOUT MANUAL RESTOCKING
+        let payload = {};
+
         if (action === 'approve') {
             const confirmed = window.confirm("Are you sure you want to approve this return?\n\nIMPORTANT: Inventory will NOT be automatically restocked. You must manually add these items back to inventory if they are still usable.");
             if (!confirmed) return;
         } else if (action === 'reject') {
-            const confirmed = window.confirm("Are you sure you want to reject this return?");
-            if (!confirmed) return;
+            // FIXED: Intercept rejection to demand a reason before submission
+            const reason = window.prompt("Please provide a reason for rejecting this return request:");
+            if (!reason || reason.trim() === '') {
+                alert("A rejection reason is strictly required.");
+                return;
+            }
+            payload.rejection_reason = reason;
         }
 
-        router.put(route('admin.approvals.return', { id: record.id, action }), {}, {
+        router.put(route('admin.approvals.return', { id: record.id, action }), payload, {
             preserveScroll: true,
             onSuccess: () => onClose()
         });

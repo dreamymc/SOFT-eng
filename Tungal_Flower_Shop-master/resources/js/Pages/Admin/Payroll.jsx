@@ -53,6 +53,13 @@ const getFieldLabel = (field) => {
     return field.replace(/_/g, ' ');
 };
 
+// INJECTED: Centralized Status Badge styling logic
+const getStatusBadge = (status) => {
+    if (status === 'Approved') return 'bg-success text-white';
+    if (status === 'Rejected') return 'bg-danger text-white';
+    return 'bg-warning text-dark';
+};
+
 // --- CREATE MODAL (Blue Button) ---
 const CreatePayrollModal = ({ isOpen, onClose, employees }) => {
     if (!isOpen) return null;
@@ -295,12 +302,23 @@ const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ backgroundColor: 'rgba(20, 20, 30, 0.5)', zIndex: 1050 }}>
             <div className="card shadow-lg border-0 overflow-hidden" style={{ borderRadius: '24px', width: '100%', maxWidth: '850px', backgroundColor: '#FFF', maxHeight: '95vh', overflowY: 'auto' }}>
                 <form onSubmit={handleSubmit} className="card-body p-4">
+                    
                     <h2 className="fw-bolder text-center mb-4" style={{ color: '#1E1E1E' }}>
                         Update Payroll
-                        <span className={`badge ms-3 align-middle ${isApproved ? 'bg-success' : 'bg-warning text-dark'}`} style={{ fontSize: '14px', verticalAlign: 'middle' }}>
+                        <span className={`badge ms-3 align-middle ${getStatusBadge(payrollRecord.status)}`} style={{ fontSize: '14px', verticalAlign: 'middle' }}>
                             {payrollRecord.status}
                         </span>
                     </h2>
+
+                    {/* INJECTED: Display Rejection Reason if Rejected */}
+                    {payrollRecord.status === 'Rejected' && payrollRecord.rejection_reason && (
+                        <div className="mb-4 text-center">
+                            <div className="d-inline-block px-4 py-2 rounded bg-light border border-danger text-dark fw-medium">
+                                <span className="text-danger fw-bold d-block mb-1" style={{ fontSize: '13px' }}>Rejection Reason</span>
+                                {payrollRecord.rejection_reason}
+                            </div>
+                        </div>
+                    )}
                     
                     <div className="row g-3 mb-4">
                         <div className="col-md-4 d-flex align-items-center gap-3">
@@ -407,7 +425,6 @@ const UpdatePayrollModal = ({ isOpen, onClose, payrollRecord, employees }) => {
 const ViewPayrollModal = ({ isOpen, onClose, payrollRecord }) => {
     if (!isOpen || !payrollRecord) return null;
 
-    const isApproved = payrollRecord.status === 'Approved';
     const empName = payrollRecord.employee ? `${payrollRecord.employee.firstname} ${payrollRecord.employee.lastname}` : 'Unknown';
 
     return (
@@ -418,12 +435,22 @@ const ViewPayrollModal = ({ isOpen, onClose, payrollRecord }) => {
                     {/* Header */}
                     <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
                         <h3 className="fw-bolder m-0" style={{ color: '#1E1E1E' }}>Payroll Details</h3>
-                        <span className={`badge px-3 py-2 rounded-pill fs-6 ${isApproved ? 'bg-success' : 'bg-warning text-dark'}`}>
+                        <span className={`badge px-3 py-2 rounded-pill fs-6 ${getStatusBadge(payrollRecord.status)}`}>
                             {payrollRecord.status}
                         </span>
                     </div>
+
+                    {/* INJECTED: Display Rejection Reason if applicable */}
+                    {payrollRecord.status === 'Rejected' && payrollRecord.rejection_reason && (
+                        <div className="mb-4">
+                            <span className="text-danger fw-bold d-block mb-2" style={{ fontSize: '13px' }}>Rejection Reason (Admin)</span>
+                            <div className="p-3 rounded bg-light text-dark fw-medium border border-danger" style={{ minHeight: '60px' }}>
+                                {payrollRecord.rejection_reason}
+                            </div>
+                        </div>
+                    )}
                     
-                    {/* Top Info Grid (Names & IDs separated) */}
+                    {/* Top Info Grid */}
                     <div className="row g-3 mb-4 p-4 bg-light rounded-3 border">
                         <div className="col-md-3 border-end">
                             <span className="fw-bold text-muted d-block mb-1" style={{ fontSize: '12px', textTransform: 'uppercase' }}>Payroll ID</span>
@@ -462,12 +489,10 @@ const ViewPayrollModal = ({ isOpen, onClose, payrollRecord }) => {
                                 </div>
                                 <div className="d-flex justify-content-between border-bottom pb-2">
                                     <span className="fw-medium text-muted">Days Worked</span>
-                                    {/* Format to remove decimals */}
                                     <span className="fw-bold text-dark">{Number(payrollRecord.days_worked)}</span>
                                 </div>
                                 <div className="d-flex justify-content-between border-bottom pb-2">
                                     <span className="fw-medium text-muted">Overtime Hours</span>
-                                    {/* Format to remove decimals */}
                                     <span className="fw-bold text-dark">{Number(payrollRecord.regular_ot)} hrs</span>
                                 </div>
                                 <div className="d-flex justify-content-between border-bottom pb-2">
@@ -588,7 +613,7 @@ export default function Payroll({ payrolls, employees = [] }) {
                                         </td>
                                         <td className="py-4 text-dark" style={{ fontSize: '15px' }}>{row.salary_method || 'Cash'}</td>
                                         <td className="py-4 text-dark" style={{ fontSize: '15px' }}>
-                                            <span className={`badge ${row.status === 'Approved' ? 'bg-success' : 'bg-warning text-dark'}`}>
+                                            <span className={`badge ${getStatusBadge(row.status)}`}>
                                                 {row.status || 'Pending'}
                                             </span>
                                         </td>
@@ -603,7 +628,6 @@ export default function Payroll({ payrolls, employees = [] }) {
                                                     <ViewIcon /> View
                                                 </button>
                                                 
-                                                {/* FIXED: Edit button completely hidden if status is 'Approved' */}
                                                 {row.status !== 'Approved' && (
                                                     <button 
                                                         onClick={() => openUpdateModal(row)}
@@ -627,13 +651,7 @@ export default function Payroll({ payrolls, employees = [] }) {
                 </div>
             </div>
 
-            <div className="d-flex justify-content-end align-items-center gap-3 mt-5">
-                <span className="text-dark d-flex align-items-center gap-2 fw-bolder" style={{ fontSize: '15px', cursor: 'pointer' }}><ArrowLeft /> Previous</span>
-                <div className="d-flex justify-content-center align-items-center fw-bolder text-white shadow-sm" style={{ width: '40px', height: '40px', backgroundColor: '#758AF8', borderRadius: '10px', fontSize: '16px' }}>1</div>
-                <span className="text-dark d-flex align-items-center gap-2 fw-bolder" style={{ fontSize: '15px', cursor: 'pointer' }}>Next <ArrowRight /></span>
-            </div>
-
-            {/* MODAL MOUNTS */}
+            {/* FIXED: Restored the Modal Mounts to the DOM */}
             <CreatePayrollModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} employees={employees} />
             <UpdatePayrollModal isOpen={isUpdateModalOpen} onClose={() => setIsUpdateModalOpen(false)} payrollRecord={selectedPayroll} employees={employees} />
             <ViewPayrollModal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} payrollRecord={selectedPayroll} />
