@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import CustomerLayout from '../../Layout/CustomerLayout';
 import ProductCard from '../../Components/ProductCard';
 import { Toaster, toast } from 'sonner';
@@ -13,10 +13,10 @@ function CartIcon() {
 }
 
 function Product({ products }) {
+  const { flash } = usePage().props;
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   
-  // INJECTED: Aligned to the dynamic Type Multiplier Database
   const { data, setData, post, processing, reset } = useForm({
     product_id: '',
     quantity: 1,
@@ -25,7 +25,16 @@ function Product({ products }) {
     price: 0
   });
 
-  // INJECTED: Load the database types into the modal
+  // Automatically trigger toasts when the backend sends flash messages
+  useEffect(() => {
+    if (flash?.error) {
+      toast.error(flash.error);
+    }
+    if (flash?.success) {
+      toast.success(flash.success);
+    }
+  }, [flash]);
+
   const handleOpenBuyModal = (product) => {
     setSelectedProduct(product);
     const defaultType = (product.types && product.types.length > 0) ? product.types[0] : { name: 'Base Unit', multiplier: 1 };
@@ -52,6 +61,12 @@ function Product({ products }) {
         handleCloseBuyModal();
         setShowSuccessBanner(true);
         setTimeout(() => setShowSuccessBanner(false), 3000);
+      },
+      onError: (errors) => {
+        // Fallback in case flash isn't populated, but modal stays open to let user fix quantity
+        if (!flash?.error) {
+          toast.error(Object.values(errors)[0] || 'Failed to add item. Please try again.');
+        }
       }
     });
   };
@@ -117,7 +132,6 @@ function Product({ products }) {
                   <input type="text" className="form-control shadow-none bg-light" style={{ borderRadius: '8px' }} value={selectedProduct.product_name} disabled />
                 </div>
 
-                {/* INJECTED: Dynamic Quantifier Select */}
                 <div className="mb-3">
                   <label className="form-label fw-bold text-dark" style={{ fontSize: '14px' }}>Type (Quantifier)</label>
                   <select 
@@ -156,7 +170,6 @@ function Product({ products }) {
                 <div className="mb-4">
                   <label className="form-label fw-bold text-dark" style={{ fontSize: '14px' }}>Total Price</label>
                   <div className="fw-bold fs-3" style={{ color: '#6C63FF' }}>
-                    {/* INJECTED: Math incorporates the multiplier */}
                     ₱{(data.price * data.multiplier * data.quantity).toFixed(2)}
                   </div>
                 </div>

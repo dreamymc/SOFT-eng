@@ -21,45 +21,55 @@ class CartController extends Controller
             'price' => 'required|numeric' 
         ]);
 
-        $user = auth()->user();
-        
-        // 404 mapped gap: Native Exception if Product doesn't exist
-        $product = Product::findOrFail($request->product_id);
+        try {
+            $user = auth()->user();
+            
+            $product = Product::findOrFail($request->product_id);
+            $piecesNeeded = $request->quantity * $request->multiplier;
 
-        $piecesNeeded = $request->quantity * $request->multiplier;
+            if ($product->stocks < $piecesNeeded) {
+                return redirect()->back()
+                    ->withErrors(['stock' => 'Insufficient stock'])
+                    ->with('error', "Insufficient stock! Only {$product->stocks} base pieces available.");
+            }
 
-        if ($product->stocks < $piecesNeeded) {
-            // 400 mapped gap: Explicitly blocking illogical requests with HTTP code
-            abort(400, "Bad Request: Insufficient stock! Only {$product->stocks} base pieces available.");
+            $subtotal = $request->price * $piecesNeeded; 
+
+            Cart::create([
+                'user_id' => $user->id,
+                'product_id' => $request->product_id,
+                'type_name' => $request->type_name,
+                'multiplier' => $request->multiplier,
+                'quantity' => $request->quantity,
+                'subtotal' => $subtotal
+            ]);
+
+            return redirect()->back()->with('success', 'Item successfully added to cart.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['transaction' => 'Failed to add item'])
+                ->with('error', 'Failed to add item to cart: ' . $e->getMessage());
         }
-
-        $subtotal = $request->price * $piecesNeeded; 
-
-        Cart::create([
-            'user_id' => $user->id,
-            'product_id' => $request->product_id,
-            'type_name' => $request->type_name,
-            'multiplier' => $request->multiplier,
-            'quantity' => $request->quantity,
-            'subtotal' => $subtotal
-        ]);
-
-        return redirect()->back()->with('success', 'Item successfully added to cart.');
     }
 
     public function cart(){
-        $user = auth()->user(); 
-        $carts = Cart::with(['user','product'])->where('user_id',$user->id)->latest()->paginate(5);
-        $total = Cart::where('user_id', $user->id)->sum('subtotal');
+        try {
+            $user = auth()->user(); 
+            $carts = Cart::with(['user','product'])->where('user_id',$user->id)->latest()->paginate(5);
+            $total = Cart::where('user_id', $user->id)->sum('subtotal');
 
-        return inertia('Customer/Cart',[
-            'carts' => $carts,
-            'total' => $total
-        ]);
+            return inertia('Customer/Cart',[
+                'carts' => $carts,
+                'total' => $total
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['load' => 'Failed to load cart'])
+                ->with('error', 'Failed to load cart.');
+        }
     }
 
     public function checkout(Request $request){
-        // --- REPLACED: Validation rules updated to handle the new payment and delivery paradigm ---
         $fields = $request->validate([
             'cart_id' => 'required|array',
             'total' => 'required|numeric', 
@@ -73,8 +83,6 @@ class CartController extends Controller
             'payment_method' => 'required|in:Cash,Gcash,Bank Transfer',
             'reference_number' => 'required_if:payment_method,Gcash,Bank Transfer|nullable|string|max:255',
             
-            // Note: cash_received is only strictly required if paying by Cash, 
-            // but we leave it as required|numeric since non-cash methods might pass the exact total.
             'cash_received' => 'required|numeric',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
             'discount_amount' => 'nullable|numeric|min:0',
@@ -83,8 +91,9 @@ class CartController extends Controller
         $user = auth()->user();
 
         if($fields['cash_received'] < $fields['total']){
-            // 400 mapped gap: Invalid Payment
-            abort(400, "Bad Request: Insufficient payment received to complete transaction.");
+            return redirect()->back()
+                ->withErrors(['payment' => 'Insufficient payment'])
+                ->with('error', "Insufficient payment received to complete transaction.");
         }
 
         try {
@@ -93,7 +102,6 @@ class CartController extends Controller
             // Determine initial order status based on the selected order type
             $initialStatus = ($fields['order_type'] === 'Delivery') ? 'To be delivered' : 'Completed - Shop';
 
-            // --- ADDED: Writing the new fields into the Order creation ---
             $store_order = Order::create([
                 'user_id' => $user->id,
                 'customer_name' => $fields['customer_name'] ?? null,
@@ -113,11 +121,9 @@ class CartController extends Controller
             $quantity = 0;
 
             foreach($fields['cart_id'] as $cart_id){
-                // 404 mapped gap: FindOrFail on standard IDs
                 $cart = Cart::findOrFail($cart_id);
                 $quantity += $cart->quantity; 
 
-                // 404 mapped gap: Ensure the product actually exists inside the transaction loop
                 $product = Product::findOrFail($cart->product_id);
                 $totalPiecesToDeduct = $cart->quantity * $cart->multiplier;
 
@@ -169,48 +175,66 @@ class CartController extends Controller
             if($updateOrder){
                 Cart::where('user_id',$user->id)->delete();
                 DB::commit();
-                return redirect()->route('customer.invoice',['order_id' => $store_order->id]);
+                return redirect()->route('customer.invoice',['order_id' => $store_order->id])->with('success', 'Transaction completed successfully.');
             }else{
                 throw new \Exception("Failed to update final order quantity.");
             }
         } catch (\Exception $e) {
-            // 500 mapped gap: Server/Transaction Error overrides default silent rollback logic
             DB::rollBack();
-            abort(500, "Internal Server Error - Transaction failed: " . $e->getMessage());
+            return redirect()->back()
+                ->withErrors(['transaction' => 'Transaction failed'])
+                ->with('error', "Transaction failed: " . $e->getMessage());
         }
     }
 
     public function invoice($order_id){
-        // 404 mapped gap
-        $order = Order::findOrFail($order_id);
-        $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
+        try {
+            $order = Order::findOrFail($order_id);
+            $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
 
-        return inertia('InvoiceReceipt',[
-            'order' => $order,
-            'orderDetails' => $orderDetails,
-        ]);
+            return inertia('InvoiceReceipt',[
+                'order' => $order,
+                'orderDetails' => $orderDetails,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['invoice' => 'Not found'])
+                ->with('error', 'Invoice not found or unavailable.');
+        }
     }
 
     public function downloadInvoice($order_id){
-        // 404 mapped gap
-        $order = Order::findOrFail($order_id);
-        $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
+        try {
+            $order = Order::findOrFail($order_id);
+            $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
 
-        return inertia('Admin/InvoiceReceipt',[
-            'order' => $order,
-            'orderDetails' => $orderDetails,
-        ]);
+            return inertia('Admin/InvoiceReceipt',[
+                'order' => $order,
+                'orderDetails' => $orderDetails,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['invoice' => 'Not found'])
+                ->with('error', 'Invoice not found or unavailable.');
+        }
     }
 
     public function removeItem($cart_id){
-        $user = auth()->user();
-        $deleteItem = Cart::where('user_id',$user->id)->where('id',$cart_id)->delete();
+        try {
+            $user = auth()->user();
+            $deleteItem = Cart::where('user_id',$user->id)->where('id',$cart_id)->delete();
 
-        if($deleteItem){
-            return redirect()->back()->with('success', 'Item voided from cart.');
-        }else{
-            // 400 mapped gap: Deleting a non-existent item or unowned item
-            abort(400, "Bad Request: Failed to remove item from cart.");
+            if($deleteItem){
+                return redirect()->back()->with('success', 'Item voided from cart.');
+            }else{
+                return redirect()->back()
+                    ->withErrors(['item' => 'Failed to remove'])
+                    ->with('error', 'Failed to remove item from cart. Item may not exist.');
+            }
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['error' => 'Exception occurred'])
+                ->with('error', 'An error occurred while removing the item.');
         }
     }
 }
