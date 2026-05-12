@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import CustomerLayout from '../../Layout/CustomerLayout';
 import ProductCard from '../../Components/ProductCard';
+import { Toaster, toast } from 'sonner';
 
 function BackIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>); }
 function TrashIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 6H5H21" stroke="#FF4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="#FF4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>); }
@@ -9,12 +10,11 @@ function CartIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fi
 function RefundIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M22.0049 7H2.00488V4C2.00488 3.73478 2.11024 3.48043 2.29778 3.29289C2.48531 3.10536 2.73967 3 3.00488 3H21.0049C21.2701 3 21.5245 3.10536 21.712 3.29289C21.8995 3.48043 22.0049 3.73478 22.0049 4V7ZM22.0049 9V20C22.0049 20.2652 21.8995 20.5196 21.712 20.7071C21.5245 20.8946 21.2701 21 21.0049 21H3.00488C2.73967 21 2.48531 20.8946 2.29778 20.7071C2.11024 20.5196 2.00488 20.2652 2.00488 20V9H22.0049ZM11.0049 14V11.5L6.50488 16H17.0049V14H11.0049Z" fill="currentColor"/></svg>); }
 
 function Cart({ carts, total, products }) {
-  const { auth } = usePage().props;
+  const { auth, flash } = usePage().props;
   const cartList = carts?.data || [];
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // INJECTED: Added Order Type, Customer Details, and Payment Tracking
   const { data, setData, post, processing, errors, reset } = useForm({
     cart_id: [],
     total: 0,
@@ -27,6 +27,16 @@ function Cart({ carts, total, products }) {
     payment_method: 'Cash',
     reference_number: ''
   });
+
+  // Automatically trigger toasts when the backend sends flash messages or resets
+  useEffect(() => {
+    if (flash?.error) {
+      toast.error(flash.error);
+    }
+    if (flash?.success) {
+      toast.success(flash.success);
+    }
+  }, [flash]);
 
   const numericTotal = parseFloat(total) || 0;
   
@@ -56,16 +66,19 @@ function Cart({ carts, total, products }) {
       onSuccess: () => {
         setShowPaymentModal(false);
         reset();
+      },
+      onError: (errors) => {
+        if (!flash?.error) {
+          toast.error(Object.values(errors)[0] || 'Transaction failed. Please try again.');
+        }
       }
     });
   };
 
   const numericCash = parseFloat(data.cash_received) || 0;
   
-  // Validation Logic based on new constraints
   const isDeliveryValid = data.order_type === 'Walk-in' || (data.order_type === 'Delivery' && data.customer_address.trim() !== '');
   const isPaymentMethodValid = data.payment_method === 'Cash' || (['Gcash', 'Bank Transfer'].includes(data.payment_method) && data.reference_number.trim() !== '');
-  // If cash, must have enough. If Gcash/Bank, assume exact amount passed via API/validation rules, but local state can enforce grandTotal match
   const isCashValid = data.payment_method === 'Cash' ? (numericCash >= grandTotal && data.cash_received !== '') : (numericCash >= grandTotal);
   
   const isPaymentValid = isDeliveryValid && isPaymentMethodValid && isCashValid;
@@ -74,6 +87,7 @@ function Cart({ carts, total, products }) {
   return (
     <div className="position-relative" style={{ minHeight: '100vh', backgroundColor: '#F5F4FF' }}>
       <Head title="Sales Order Details" />
+      <Toaster position="top-right" richColors expand={true} />
 
       {/* BACKGROUND (BLURRED) */}
       <div className="container-fluid py-5 px-4" style={{ filter: showPaymentModal ? 'blur(3px)' : 'none', opacity: showPaymentModal ? 0.5 : 1, transition: 'all 0.3s ease' }}>
@@ -195,8 +209,6 @@ function Cart({ carts, total, products }) {
                                 <span className="fw-bold">-₱{discountAmount.toFixed(2)}</span>
                             </div>
                         )}
-
-                        {/* REPLACED: Tax Row Removed */}
 
                         <hr style={{ borderColor: '#dee2e6' }} />
                         <div className="d-flex justify-content-between align-items-center my-4">

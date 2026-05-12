@@ -27,10 +27,21 @@ class CartController extends Controller
             $product = Product::findOrFail($request->product_id);
             $piecesNeeded = $request->quantity * $request->multiplier;
 
-            if ($product->stocks < $piecesNeeded) {
+            // INJECTED: Fetch existing cart items for this product and calculate total pieces already reserved
+            $existingCartItems = Cart::where('user_id', $user->id)
+                                     ->where('product_id', $product->id)
+                                     ->get();
+                                     
+            $existingPieces = $existingCartItems->sum(function($item) {
+                return $item->quantity * $item->multiplier;
+            });
+
+            // INJECTED: Aggregate verification
+            if ($product->stocks < ($piecesNeeded + $existingPieces)) {
+                $available = max(0, $product->stocks - $existingPieces);
                 return redirect()->back()
                     ->withErrors(['stock' => 'Insufficient stock'])
-                    ->with('error', "Insufficient stock! Only {$product->stocks} base pieces available.");
+                    ->with('error', "Insufficient stock! You have {$existingPieces} pieces in cart. Only {$available} more base pieces available.");
             }
 
             $subtotal = $request->price * $piecesNeeded; 
