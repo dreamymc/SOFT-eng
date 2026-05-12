@@ -4,6 +4,7 @@ import { Link, useForm, usePage, router } from '@inertiajs/react';
 import { IoReceipt } from "react-icons/io5";
 import { useRoute } from '../../../../vendor/tightenco/ziggy/';
 import { Toaster, toast } from 'sonner';
+import ConfirmModal from '../../Components/ConfirmModal';
 
 // --- CUSTOM ICONS ---
 const ArrowLeft = () => (
@@ -22,6 +23,8 @@ function Orders({ orders }) {
     const route = useRoute();
     const { flash } = usePage().props;
     const [searchQuery, setSearchQuery] = useState('');
+    const [paymentOrderId, setPaymentOrderId] = useState(null);
+    const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
     
     const [refundStep, setRefundStep] = useState(0);
 
@@ -64,12 +67,18 @@ function Orders({ orders }) {
     };
 
     const handleConfirmPayment = (orderId) => {
-        const confirmed = window.confirm("Are you sure you want to finalize this order? This confirms the delivery driver has handed over the payment.");
-        if (confirmed) {
-            router.post(route('customer.orders.finalizePayment', { id: orderId }), {}, {
-                preserveScroll: true,
-            });
-        }
+        setPaymentOrderId(orderId);
+    };
+
+    const finalizePayment = () => {
+        if (!paymentOrderId) return;
+
+        setIsPaymentProcessing(true);
+        router.post(route('customer.orders.finalizePayment', { id: paymentOrderId }), {}, {
+            preserveScroll: true,
+            onFinish: () => setIsPaymentProcessing(false),
+            onSuccess: () => setPaymentOrderId(null),
+        });
     };
 
     // Expanded to include new delivery workflow statuses
@@ -314,6 +323,17 @@ function Orders({ orders }) {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={!!paymentOrderId}
+                title="Finalize Delivered Payment?"
+                message="This confirms the delivery driver has handed over the payment."
+                confirmLabel="Finalize"
+                variant="success"
+                isProcessing={isPaymentProcessing}
+                onCancel={() => setPaymentOrderId(null)}
+                onConfirm={finalizePayment}
+            />
 
         </div>
     );

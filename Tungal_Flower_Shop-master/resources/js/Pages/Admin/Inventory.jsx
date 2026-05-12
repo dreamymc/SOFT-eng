@@ -4,6 +4,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { toast } from 'sonner';
 import AddProduct from './Inventory_Features/AddProduct'; 
 import UpdateProduct from './Inventory_Features/UpdateProduct';
+import ConfirmModal from '../../Components/ConfirmModal';
 
 const SearchIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6c757d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" cy="21" x2="16.65" y2="16.65"></line></svg>);
 const PlusIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>);
@@ -37,6 +38,7 @@ function Inventory({ products }) {
     const [flowerToUpdate, setFlowerToUpdate] = useState(null);
 
     const [selectedFlower, setSelectedFlower] = useState(null);
+    const [batchToStockOut, setBatchToStockOut] = useState(null);
 
     // Batch Management State
     const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
@@ -46,7 +48,7 @@ function Inventory({ products }) {
         expiry_date: '',
         expiry_time: '',
     });
-    const { delete: destroy } = useForm();
+    const { delete: destroy, processing: isStockOutProcessing } = useForm();
 
     const productList = products?.data ? products.data : products || [];
 
@@ -119,12 +121,19 @@ function Inventory({ products }) {
     };
 
     const handleStockOutBatch = (batchId) => {
-        if (confirm('Are you sure you want to manually stock out this batch? This will deduct the quantity from inventory.')) {
-            destroy(route('admin.batches.destroy', batchId), {
-                preserveScroll: true,
-                onSuccess: () => toast.success('Batch manually stocked out.')
-            });
-        }
+        setBatchToStockOut(batchId);
+    };
+
+    const confirmStockOutBatch = () => {
+        if (!batchToStockOut) return;
+
+        destroy(route('admin.batches.destroy', batchToStockOut), {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success('Batch manually stocked out.');
+                setBatchToStockOut(null);
+            }
+        });
     };
 
     return (
@@ -422,6 +431,17 @@ function Inventory({ products }) {
             <AddProduct isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             
             <UpdateProduct isOpen={isUpdateModalOpen} onClose={() => setIsUpdateModalOpen(false)} flower={flowerToUpdate} />
+
+            <ConfirmModal
+                isOpen={!!batchToStockOut}
+                title="Stock Out Batch?"
+                message="This will manually remove the active batch quantity from inventory."
+                confirmLabel="Stock Out"
+                variant="danger"
+                isProcessing={isStockOutProcessing}
+                onCancel={() => setBatchToStockOut(null)}
+                onConfirm={confirmStockOutBatch}
+            />
         </div>
     );
 }

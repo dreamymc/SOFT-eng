@@ -4,6 +4,7 @@ import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useRoute } from '../../../../../vendor/tightenco/ziggy';
 import { Toaster, toast } from 'sonner';
 import profilePlaceholder from '../../../../../public/assets/images/profile.png';
+import ConfirmModal from '../../../Components/ConfirmModal';
 
 // Icons
 const BackIcon = () => (
@@ -155,6 +156,8 @@ export default function ViewProfile({ user_info }) {
     // MODAL STATES
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRecord, setEditingRecord] = useState(null); // Tells the modal which row we are editing
+    const [isFireConfirmOpen, setIsFireConfirmOpen] = useState(false);
+    const [isFireProcessing, setIsFireProcessing] = useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
         id: targetData.id || '',
@@ -178,11 +181,16 @@ export default function ViewProfile({ user_info }) {
         post(route('employee.updateUserInfo'));
     };
 
-    // FIXED: Added Fire function with confirmation prompt
     const handleFire = () => {
-        if (confirm("Are you sure you want to fire this employee? This action cannot be undone.")) {
-            router.delete(route('admin.employee.destroy', targetData.id));
-        }
+        setIsFireConfirmOpen(true);
+    };
+
+    const confirmFire = () => {
+        setIsFireProcessing(true);
+        router.delete(route('admin.employee.destroy', targetData.id), {
+            onFinish: () => setIsFireProcessing(false),
+            onSuccess: () => setIsFireConfirmOpen(false)
+        });
     };
 
     return (
@@ -414,6 +422,17 @@ export default function ViewProfile({ user_info }) {
                 }} 
                 userId={targetData.id} 
                 existingRecord={editingRecord} 
+            />
+
+            <ConfirmModal
+                isOpen={isFireConfirmOpen}
+                title="Fire Employee?"
+                message="Are you sure you want to fire this employee? This action cannot be undone."
+                confirmLabel="Fire"
+                variant="danger"
+                isProcessing={isFireProcessing}
+                onCancel={() => setIsFireConfirmOpen(false)}
+                onConfirm={confirmFire}
             />
         </div>
     );
