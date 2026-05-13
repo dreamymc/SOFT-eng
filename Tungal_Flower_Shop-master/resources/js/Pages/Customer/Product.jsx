@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import CustomerLayout from '../../Layout/CustomerLayout';
 import ProductCard from '../../Components/ProductCard';
 import { Toaster, toast } from 'sonner';
@@ -13,19 +13,29 @@ function CartIcon() {
 }
 
 function Product({ products }) {
+  const { flash } = usePage().props;
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   
-  // INJECTED: Aligned to the dynamic Type Multiplier Database
+  // INJECTED: Local UI Math state decoupled from the network request
+  const [uiMath, setUiMath] = useState({ price: 0, multiplier: 1 });
+
+  // REPLACED: Stripped price and multiplier. The client no longer tries to dictate costs.
   const { data, setData, post, processing, reset } = useForm({
     product_id: '',
     quantity: 1,
     type_name: '',
-    multiplier: 1,
-    price: 0
   });
 
-  // INJECTED: Load the database types into the modal
+  useEffect(() => {
+    if (flash?.error) {
+      toast.error(flash.error);
+    }
+    if (flash?.success) {
+      toast.success(flash.success);
+    }
+  }, [flash]);
+
   const handleOpenBuyModal = (product) => {
     setSelectedProduct(product);
     const defaultType = (product.types && product.types.length > 0) ? product.types[0] : { name: 'Base Unit', multiplier: 1 };
@@ -34,8 +44,11 @@ function Product({ products }) {
         product_id: product.id, 
         quantity: 1, 
         type_name: defaultType.name,
-        multiplier: defaultType.multiplier,
-        price: product.price 
+    });
+
+    setUiMath({
+        price: product.price,
+        multiplier: defaultType.multiplier
     });
   };
 
@@ -52,6 +65,11 @@ function Product({ products }) {
         handleCloseBuyModal();
         setShowSuccessBanner(true);
         setTimeout(() => setShowSuccessBanner(false), 3000);
+      },
+      onError: (errors) => {
+        if (!flash?.error) {
+          toast.error(Object.values(errors)[0] || 'Failed to add item. Please try again.');
+        }
       }
     });
   };
@@ -117,16 +135,16 @@ function Product({ products }) {
                   <input type="text" className="form-control shadow-none bg-light" style={{ borderRadius: '8px' }} value={selectedProduct.product_name} disabled />
                 </div>
 
-                {/* INJECTED: Dynamic Quantifier Select */}
                 <div className="mb-3">
                   <label className="form-label fw-bold text-dark" style={{ fontSize: '14px' }}>Type (Quantifier)</label>
                   <select 
                     className="form-select shadow-none bg-light" 
                     style={{ borderRadius: '8px' }} 
-                    value={JSON.stringify({ name: data.type_name, multiplier: data.multiplier })} 
+                    value={JSON.stringify({ name: data.type_name, multiplier: uiMath.multiplier })} 
                     onChange={(e) => {
                         const parsed = JSON.parse(e.target.value);
-                        setData(prev => ({ ...prev, type_name: parsed.name, multiplier: parsed.multiplier }));
+                        setData('type_name', parsed.name);
+                        setUiMath(prev => ({ ...prev, multiplier: parsed.multiplier }));
                     }}
                   >
                     {selectedProduct.types && selectedProduct.types.length > 0 ? (
@@ -150,14 +168,13 @@ function Product({ products }) {
                     <input type="number" className="form-control text-center shadow-none" value={data.quantity} readOnly />
                     <button type="button" className="btn btn-outline-secondary fw-bold" onClick={() => setData('quantity', data.quantity + 1)}>+</button>
                   </div>
-                  <small className="text-muted d-block mt-2">Total base pieces to deduct: <b>{data.quantity * data.multiplier}</b></small>
+                  <small className="text-muted d-block mt-2">Total base pieces to deduct: <b>{data.quantity * uiMath.multiplier}</b></small>
                 </div>
 
                 <div className="mb-4">
                   <label className="form-label fw-bold text-dark" style={{ fontSize: '14px' }}>Total Price</label>
                   <div className="fw-bold fs-3" style={{ color: '#6C63FF' }}>
-                    {/* INJECTED: Math incorporates the multiplier */}
-                    ₱{(data.price * data.multiplier * data.quantity).toFixed(2)}
+                    ₱{(uiMath.price * uiMath.multiplier * data.quantity).toFixed(2)}
                   </div>
                 </div>
 

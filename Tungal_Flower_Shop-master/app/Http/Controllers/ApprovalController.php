@@ -66,7 +66,15 @@ class ApprovalController extends Controller
         } 
         
         if ($action === 'reject') {
-            $payroll->update(['status' => 'Rejected']);
+            // INJECTED: Require rejection reason from the frontend payload
+            $request->validate([
+                'rejection_reason' => 'required|string|max:1000'
+            ]);
+
+            $payroll->update([
+                'status' => 'Rejected',
+                'rejection_reason' => $request->rejection_reason
+            ]);
             return redirect()->back()->with('success', 'Payroll has been rejected.');
         }
 
@@ -113,14 +121,26 @@ class ApprovalController extends Controller
         } 
         
         if ($action === 'reject') {
+            // INJECTED: Require rejection reason from the frontend payload
+            $request->validate([
+                'rejection_reason' => 'required|string|max:1000'
+            ]);
+
             DB::beginTransaction();
             try {
-                // 1. Update the return request status
-                $returnRequest->update(['status' => 'Rejected']);
+                // 1. Update the return request status and attach the reason
+                $returnRequest->update([
+                    'status' => 'Rejected',
+                    'rejection_reason' => $request->rejection_reason
+                ]);
                 
-                // 2. Revert the original Order 'order_status' back to Completed/Paid
+                // 2. Revert the original Order 'order_status' back to Completed safely based on type
                 if ($returnRequest->order) {
-                    $returnRequest->order->update(['order_status' => 'Completed']);
+                    $newStatus = $returnRequest->order->order_type === 'Delivery' 
+                        ? 'Completed - Delivered' 
+                        : 'Completed - Shop';
+
+                    $returnRequest->order->update(['order_status' => $newStatus]);
                 }
 
                 DB::commit();

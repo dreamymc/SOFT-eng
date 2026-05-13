@@ -10,13 +10,16 @@ class DeliveryMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        if (!auth()->check()) {
+            return redirect()->route('login');
+        }
 
+        $user = $request->user();
         $role = strtolower($user->role);
+        
         switch($role){
             case 'delivery':
                 return $next($request);
-                break;
             default:
                 abort(403, 'Forbidden - no permission');
         }

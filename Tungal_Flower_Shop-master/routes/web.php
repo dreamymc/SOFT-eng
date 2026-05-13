@@ -12,6 +12,13 @@ Route::get('/', function () {
     return inertia('Index');
 })->name('customer.index');
 
+// INJECTED: Laravel's default Auth middleware mathematically requires a named 'login' route to exist.
+// If an unauthenticated user tries to breach a protected route, Laravel redirects them here.
+// Without this, the server throws a 500 error trying to find where to bounce them.
+Route::get('/login', function () {
+    return redirect()->route('customer.index');
+})->name('login');
+
 Route::post('/authentication', [UserController::class,'authentication'])
 ->name('customer.authentication');
 
@@ -43,6 +50,9 @@ Route::middleware(['auth', EmployeeMiddleware::class])->group(function () {
     Route::post('/profile/updateProfilePassword',[UserController::class,'updateProfilePassword'])->name('customer.updateProfilePassword');
 
     Route::get('/orders', [OrderController::class,'orders'])->name('customer.orders');
+    
+    // INJECTED: Route for Cashier to confirm payment after delivery drop-off
+    Route::post('/orders/{id}/finalize-payment', [OrderController::class, 'finalizePayment'])->name('customer.orders.finalizePayment');
 
     Route::post('/orders/return', [App\Http\Controllers\ReturnController::class, 'store'])->name('customer.return.store');
     

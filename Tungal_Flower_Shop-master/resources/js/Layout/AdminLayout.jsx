@@ -2,7 +2,7 @@ import React from 'react'
 import logo from '../../../public/assets/images/logo.png'
 import profile from '../../../public/assets/images/profile.png'
 import { Link, usePage } from '@inertiajs/react'
-import { BsFillGridFill, BsBoxSeam, BsFileText, BsTruck, BsArrowReturnLeft, BsCashStack, BsPersonCheck, BsCreditCard } from "react-icons/bs";
+import { BsFillGridFill, BsBoxSeam, BsTruck, BsArrowReturnLeft, BsCashStack, BsPersonCheck, BsCreditCard } from "react-icons/bs";
 import { IoExit, IoPeople } from "react-icons/io5";
 import { FaBars } from "react-icons/fa6";
 import { useRoute } from '../../../vendor/tightenco/ziggy'
@@ -56,19 +56,13 @@ export default function AdminLayout({ children }) {
                             </Link>
                         )}
                         
-                        {(role === 'Admin' || role === 'Owner') && (
-                            <Link href={route('admin.report')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none sidebar-item-custom" style={route().current('admin.report') ? activeLinkStyle : inactiveLinkStyle}>
-                                <BsFileText className="fs-5" /> Report
-                            </Link>
-                        )}
-                        
                         {(role === 'Admin' || role === 'Manager') && (
                             <Link href={route('admin.returns')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none sidebar-item-custom" style={route().current('admin.returns') ? activeLinkStyle : inactiveLinkStyle}>
                                 <BsArrowReturnLeft className="fs-5" /> Returns
                             </Link>
                         )}
                         
-                        {role === 'Admin' && (
+                        {(role === 'Admin' || role === 'Manager') && (
                             <Link href={route('admin.employee')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none sidebar-item-custom" style={route().current('admin.employee') ? activeLinkStyle : inactiveLinkStyle}>
                                 <IoPeople className="fs-5" /> Employee
                             </Link>
@@ -138,19 +132,13 @@ export default function AdminLayout({ children }) {
                                 </Link>
                             )}
                             
-                            {(role === 'Admin' || role === 'Owner') && (
-                                <Link href={route('admin.report')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none" style={route().current('admin.report') ? activeLinkStyle : inactiveLinkStyle}>
-                                    <BsFileText /> Report
-                                </Link>
-                            )}
-                            
                             {(role === 'Admin' || role === 'Manager') && (
                                 <Link href={route('admin.returns')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none" style={route().current('admin.returns') ? activeLinkStyle : inactiveLinkStyle}>
                                     <BsArrowReturnLeft /> Returns
                                 </Link>
                             )}
 
-                            {role === 'Admin' && (
+                            {(role === 'Admin' || role === 'Manager') && (
                                 <Link href={route('admin.employee')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none" style={route().current('admin.employee') ? activeLinkStyle : inactiveLinkStyle}>
                                     <IoPeople /> Employee
                                 </Link>

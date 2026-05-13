@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductBatch;
+use App\Models\ProductType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -16,89 +17,161 @@ class CartController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'type_name' => 'required|string',
-            'multiplier' => 'required|integer|min:1',
             'quantity' => 'required|integer|min:1',
-            'price' => 'required|numeric' 
         ]);
 
-        $user = auth()->user();
-        
-        // 404 mapped gap: Native Exception if Product doesn't exist
-        $product = Product::findOrFail($request->product_id);
+        try {
+            $user = auth()->user();
+            
+            $product = Product::findOrFail($request->product_id);
+            
+            // INJECTED: Strict Type Guard Validation
+            $productType = ProductType::where('product_id', $product->id)
+                                      ->where('name', $request->type_name)
+                                      ->first();
+                                      
+            $hasTypes = ProductType::where('product_id', $product->id)->exists();
 
-        $piecesNeeded = $request->quantity * $request->multiplier;
+            // If the product has defined types, the request MUST match one of them exactly.
+            if ($hasTypes && !$productType) {
+                return redirect()->back()
+                    ->withErrors(['type_name' => 'Invalid Type'])
+                    ->with('error', 'Bad Request: The selected product type is invalid.');
+            }
 
-        if ($product->stocks < $piecesNeeded) {
-            // 400 mapped gap: Explicitly blocking illogical requests with HTTP code
-            abort(400, "Bad Request: Insufficient stock! Only {$product->stocks} base pieces available.");
+            // If the product has NO types, the only valid input is 'Base Unit'.
+            if (!$hasTypes && $request->type_name !== 'Base Unit') {
+                 return redirect()->back()
+                    ->withErrors(['type_name' => 'Invalid Type'])
+                    ->with('error', 'Bad Request: This product only exists as a Base Unit.');
+            }
+                                                  
+            $multiplier = $productType ? $productType->multiplier : 1;
+            $piecesNeeded = $request->quantity * $multiplier;
+            $serverPrice = $product->price;
+
+            $existingCartItems = Cart::where('user_id', $user->id)
+                                     ->where('product_id', $product->id)
+                                     ->get();
+                                     
+            $existingPieces = $existingCartItems->sum(function($item) {
+                return $item->quantity * $item->multiplier;
+            });
+
+            if ($product->stocks < ($piecesNeeded + $existingPieces)) {
+                $available = max(0, $product->stocks - $existingPieces);
+                return redirect()->back()
+                    ->withErrors(['stock' => 'Insufficient stock'])
+                    ->with('error', "Insufficient stock! You have {$existingPieces} pieces in cart. Only {$available} more base pieces available.");
+            }
+
+            $subtotal = $serverPrice * $piecesNeeded; 
+
+            Cart::create([
+                'user_id' => $user->id,
+                'product_id' => $request->product_id,
+                'type_name' => $request->type_name,
+                'multiplier' => $multiplier,
+                'quantity' => $request->quantity,
+                'subtotal' => $subtotal
+            ]);
+
+            return redirect()->back()->with('success', 'Item successfully added to cart.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['transaction' => 'Failed to add item'])
+                ->with('error', 'Failed to add item to cart.');
         }
-
-        $subtotal = $request->price * $piecesNeeded; 
-
-        Cart::create([
-            'user_id' => $user->id,
-            'product_id' => $request->product_id,
-            'type_name' => $request->type_name,
-            'multiplier' => $request->multiplier,
-            'quantity' => $request->quantity,
-            'subtotal' => $subtotal
-        ]);
-
-        return redirect()->back()->with('success', 'Item successfully added to cart.');
     }
 
     public function cart(){
-        $user = auth()->user(); 
-        $carts = Cart::with(['user','product'])->where('user_id',$user->id)->latest()->paginate(5);
-        $total = Cart::where('user_id', $user->id)->sum('subtotal');
+        try {
+            $user = auth()->user(); 
+            $carts = Cart::with(['user','product'])->where('user_id',$user->id)->latest()->paginate(5);
+            $total = Cart::where('user_id', $user->id)->sum('subtotal');
 
-        return inertia('Customer/Cart',[
-            'carts' => $carts,
-            'total' => $total
-        ]);
+            return inertia('Customer/Cart',[
+                'carts' => $carts,
+                'total' => $total
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['load' => 'Failed to load cart'])
+                ->with('error', 'Failed to load cart.');
+        }
     }
 
     public function checkout(Request $request){
         $fields = $request->validate([
             'cart_id' => 'required|array',
-            'total' => 'required|numeric', 
+            'cart_id.*' => 'required|exists:carts,id',
+            
+            'order_type' => 'required|in:Walk-in,Delivery',
+            'customer_name' => 'nullable|string|max:255',
+            'customer_address' => 'required_if:order_type,Delivery|nullable|string|max:500',
+            
+            'payment_method' => 'required|in:Cash,Gcash,Bank Transfer',
+            'reference_number' => 'required_if:payment_method,Gcash,Bank Transfer|nullable|string|max:255',
+            
             'cash_received' => 'required|numeric',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
-            'discount_amount' => 'nullable|numeric|min:0',
         ]);
 
         $user = auth()->user();
 
-        if($fields['cash_received'] < $fields['total']){
-            // 400 mapped gap: Invalid Payment
-            abort(400, "Bad Request: Insufficient cash received to complete transaction.");
+        $discountPercentage = $fields['discount_percentage'] ?? 0;
+        if ($discountPercentage > 0 && !in_array($user->role, ['Admin', 'Manager', 'Owner', 'Cashier'])) {
+             return redirect()->back()
+                ->withErrors(['discount' => 'Unauthorized'])
+                ->with('error', 'Bad Request: Only Managers or Admins can authorize discounts.');
+        }
+
+        $cartItems = Cart::whereIn('id', $fields['cart_id'])->where('user_id', $user->id)->get();
+        if ($cartItems->count() !== count($fields['cart_id'])) {
+            return redirect()->back()
+                ->withErrors(['cart' => 'Cart mismatch'])
+                ->with('error', "Bad Request: Cart item ownership mismatch.");
+        }
+
+        $serverSubtotal = $cartItems->sum('subtotal');
+        $discountAmount = $discountPercentage > 0 ? ($serverSubtotal * ($discountPercentage / 100)) : 0;
+        $serverGrandTotal = max(0, $serverSubtotal - $discountAmount);
+
+        if($fields['cash_received'] < $serverGrandTotal){
+            return redirect()->back()
+                ->withErrors(['payment' => 'Insufficient payment'])
+                ->with('error', "Insufficient payment received. Grand Total is ₱" . number_format($serverGrandTotal, 2));
         }
 
         try {
             DB::beginTransaction();
+            
+            $initialStatus = ($fields['order_type'] === 'Delivery') ? 'To be delivered' : 'Completed - Shop';
 
             $store_order = Order::create([
                 'user_id' => $user->id,
+                'customer_name' => $fields['customer_name'] ?? null,
+                'customer_address' => $fields['customer_address'] ?? null,
+                'order_type' => $fields['order_type'],
+                'payment_method' => $fields['payment_method'],
+                'reference_number' => $fields['reference_number'] ?? null,
                 'quantity' => 0, 
-                'total' => $fields['total'],
-                'discount_percentage' => $fields['discount_percentage'] ?? null,
-                'discount_amount' => $fields['discount_amount'] ?? 0,
+                'total' => $serverGrandTotal,
+                'discount_percentage' => $discountPercentage > 0 ? $discountPercentage : null,
+                'discount_amount' => $discountAmount,
                 'cash_recieved' => $fields['cash_received'],
-                'change' => $fields['cash_received'] - $fields['total'],
+                'change' => $fields['cash_received'] - $serverGrandTotal,
+                'order_status' => $initialStatus
             ]);
             
             $quantity = 0;
 
-            foreach($fields['cart_id'] as $cart_id){
-                // 404 mapped gap: FindOrFail on standard IDs
-                $cart = Cart::findOrFail($cart_id);
+            foreach($cartItems as $cart){
                 $quantity += $cart->quantity; 
 
-                // 404 mapped gap: Ensure the product actually exists inside the transaction loop
                 $product = Product::findOrFail($cart->product_id);
                 $totalPiecesToDeduct = $cart->quantity * $cart->multiplier;
 
-                // FEFO (First Expired, First Out) Logic with Pessimistic Locking
                 $activeBatches = ProductBatch::where('product_id', $product->id)
                     ->where('status', 'active')
                     ->lockForUpdate()
@@ -122,7 +195,6 @@ class CartController extends Controller
                     }
                 }
 
-                // Guard against Ghost Deductions
                 if ($remainingToDeduct > 0) {
                     throw new \Exception("Not enough active batch stock for {$product->product_name}.");
                 }
@@ -144,50 +216,76 @@ class CartController extends Controller
             ]);
 
             if($updateOrder){
-                Cart::where('user_id',$user->id)->delete();
+                Cart::whereIn('id', $cartItems->pluck('id'))->delete();
                 DB::commit();
-                return redirect()->route('customer.invoice',['order_id' => $store_order->id]);
+                return redirect()->route('customer.invoice',['order_id' => $store_order->id])->with('success', 'Transaction completed successfully.');
             }else{
                 throw new \Exception("Failed to update final order quantity.");
             }
         } catch (\Exception $e) {
-            // 500 mapped gap: Server/Transaction Error overrides default silent rollback logic
             DB::rollBack();
-            abort(500, "Internal Server Error - Transaction failed: " . $e->getMessage());
+            return redirect()->back()
+                ->withErrors(['transaction' => 'Transaction failed'])
+                ->with('error', "Transaction failed.");
         }
     }
 
     public function invoice($order_id){
-        // 404 mapped gap
-        $order = Order::findOrFail($order_id);
-        $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
+        try {
+            $user = auth()->user();
+            $order = Order::findOrFail($order_id);
 
-        return inertia('InvoiceReceipt',[
-            'order' => $order,
-            'orderDetails' => $orderDetails,
-        ]);
+            if ($order->user_id !== $user->id && !in_array($user->role, ['Admin', 'Manager', 'Owner'])) {
+                return redirect()->back()
+                    ->withErrors(['invoice' => 'Unauthorized'])
+                    ->with('error', 'Unauthorized access to invoice.');
+            }
+
+            $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
+
+            return inertia('InvoiceReceipt',[
+                'order' => $order,
+                'orderDetails' => $orderDetails,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['invoice' => 'Not found'])
+                ->with('error', 'Invoice not found or unavailable.');
+        }
     }
 
     public function downloadInvoice($order_id){
-        // 404 mapped gap
-        $order = Order::findOrFail($order_id);
-        $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
+        try {
+            $order = Order::findOrFail($order_id);
+            $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
 
-        return inertia('Admin/InvoiceReceipt',[
-            'order' => $order,
-            'orderDetails' => $orderDetails,
-        ]);
+            return inertia('Admin/InvoiceReceipt',[
+                'order' => $order,
+                'orderDetails' => $orderDetails,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['invoice' => 'Not found'])
+                ->with('error', 'Invoice not found or unavailable.');
+        }
     }
 
     public function removeItem($cart_id){
-        $user = auth()->user();
-        $deleteItem = Cart::where('user_id',$user->id)->where('id',$cart_id)->delete();
+        try {
+            $user = auth()->user();
+            $deleteItem = Cart::where('user_id',$user->id)->where('id',$cart_id)->delete();
 
-        if($deleteItem){
-            return redirect()->back()->with('success', 'Item voided from cart.');
-        }else{
-            // 400 mapped gap: Deleting a non-existent item or unowned item
-            abort(400, "Bad Request: Failed to remove item from cart.");
+            if($deleteItem){
+                return redirect()->back()->with('success', 'Item voided from cart.');
+            }else{
+                return redirect()->back()
+                    ->withErrors(['item' => 'Failed to remove'])
+                    ->with('error', 'Failed to remove item from cart. Item may not exist.');
+            }
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['error' => 'Exception occurred'])
+                ->with('error', 'An error occurred while removing the item.');
         }
     }
 }

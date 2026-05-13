@@ -3,6 +3,7 @@ import AdminLayout from '../../Layout/AdminLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import profilePlaceholder from '../../../../public/assets/images/profile.png';
 import AddEmployee from './Employee_Features/AddEmployee'; // <-- THIS IMPORT IS CRITICAL
+import ConfirmModal from '../../Components/ConfirmModal';
 
 const UserIconFilled = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -38,6 +39,8 @@ function Employee({ employees }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [employeeToFire, setEmployeeToFire] = useState(null);
+    const [isFireProcessing, setIsFireProcessing] = useState(false);
     
     const ITEMS_PER_PAGE = 4;
     const employeeList = employees?.data ? employees.data : employees || [];
@@ -59,13 +62,19 @@ function Employee({ employees }) {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const displayedEmployees = filteredEmployees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-    // FIXED: The fire action logic
     const handleFire = (id) => {
-        if (confirm("Are you sure you want to fire this employee? This action cannot be undone.")) {
-            router.delete(route('admin.employee.destroy', id), {
-                preserveScroll: true
-            });
-        }
+        setEmployeeToFire(id);
+    };
+
+    const confirmFire = () => {
+        if (!employeeToFire) return;
+
+        setIsFireProcessing(true);
+        router.delete(route('admin.employee.destroy', employeeToFire), {
+            preserveScroll: true,
+            onFinish: () => setIsFireProcessing(false),
+            onSuccess: () => setEmployeeToFire(null)
+        });
     };
 
     return (
@@ -219,6 +228,17 @@ function Employee({ employees }) {
             <AddEmployee 
                 isOpen={isAddModalOpen} 
                 onClose={() => setIsAddModalOpen(false)} 
+            />
+
+            <ConfirmModal
+                isOpen={!!employeeToFire}
+                title="Fire Employee?"
+                message="Are you sure you want to fire this employee? This action cannot be undone."
+                confirmLabel="Fire"
+                variant="danger"
+                isProcessing={isFireProcessing}
+                onCancel={() => setEmployeeToFire(null)}
+                onConfirm={confirmFire}
             />
         </div>
     );

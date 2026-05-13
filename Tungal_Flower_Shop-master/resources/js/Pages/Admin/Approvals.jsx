@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../Layout/AdminLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Toaster, toast } from 'sonner';
+import ConfirmModal from '../../Components/ConfirmModal';
 
 // --- ICONS ---
 const SearchIcon = () => (
@@ -35,21 +36,47 @@ const XIcon = () => (
 // --- MODALS ---
 
 const ReviewPayrollModal = ({ isOpen, onClose, record }) => {
+    const [isRejecting, setIsRejecting] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [rejectionError, setRejectionError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setIsRejecting(false);
+            setRejectionReason('');
+            setRejectionError('');
+            setIsSubmitting(false);
+            setIsApproveConfirmOpen(false);
+        }
+    }, [isOpen]);
+
     if (!isOpen || !record) return null;
 
-    const handleAction = (action) => {
-        if (action === 'approve') {
-            const confirmed = window.confirm("Are you sure you want to approve this payroll?");
-            if (!confirmed) return;
-        } else if (action === 'reject') {
-            const confirmed = window.confirm("Are you sure you want to reject this payroll?");
-            if (!confirmed) return;
+    const submitAction = (action, payload = {}) => {
+        setIsSubmitting(true);
+        router.put(route('admin.approvals.payroll', { id: record.id, action }), payload, {
+            preserveScroll: true,
+            onSuccess: () => onClose(),
+            onFinish: () => setIsSubmitting(false)
+        });
+    };
+
+    const handleApprove = () => {
+        setIsApproveConfirmOpen(false);
+        submitAction('approve');
+    };
+
+    const handleReject = () => {
+        const reason = rejectionReason.trim();
+
+        if (!reason) {
+            setRejectionError('A rejection reason is required.');
+            return;
         }
 
-        router.put(route('admin.approvals.payroll', { id: record.id, action }), {}, {
-            preserveScroll: true,
-            onSuccess: () => onClose()
-        });
+        submitAction('reject', { rejection_reason: reason });
     };
 
     return (
@@ -81,38 +108,104 @@ const ReviewPayrollModal = ({ isOpen, onClose, record }) => {
                         </div>
                     </div>
 
-                    <div className="d-flex justify-content-between gap-3 mt-4">
-                        <button onClick={() => handleAction('reject')} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#DC3545', borderRadius: '8px', height: '45px' }}>
-                            <XIcon /> Reject
-                        </button>
-                        <button onClick={() => handleAction('approve')} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#198754', borderRadius: '8px', height: '45px' }}>
-                            <CheckIcon /> Approve
-                        </button>
-                    </div>
+                    {isRejecting && (
+                        <div className="mb-4">
+                            <label className="form-label fw-bold text-dark" style={{ fontSize: '14px' }}>
+                                Rejection Reason
+                            </label>
+                            <textarea
+                                className={`form-control shadow-none ${rejectionError ? 'is-invalid' : ''}`}
+                                rows="4"
+                                value={rejectionReason}
+                                onChange={(e) => {
+                                    setRejectionReason(e.target.value);
+                                    if (rejectionError) setRejectionError('');
+                                }}
+                                placeholder="Explain why this payroll is being rejected..."
+                                style={{ borderRadius: '8px', resize: 'none' }}
+                            />
+                            {rejectionError && <div className="invalid-feedback d-block">{rejectionError}</div>}
+                        </div>
+                    )}
+
+                    {isRejecting ? (
+                        <div className="d-flex justify-content-between gap-3 mt-4">
+                            <button type="button" onClick={() => setIsRejecting(false)} disabled={isSubmitting} className="btn w-50 fw-bold text-muted" style={{ backgroundColor: '#EBEAEE', borderRadius: '8px', height: '45px' }}>
+                                Back
+                            </button>
+                            <button type="button" onClick={handleReject} disabled={isSubmitting} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#DC3545', borderRadius: '8px', height: '45px' }}>
+                                <XIcon /> {isSubmitting ? 'Rejecting...' : 'Confirm Reject'}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="d-flex justify-content-between gap-3 mt-4">
+                            <button type="button" onClick={() => setIsRejecting(true)} disabled={isSubmitting} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#DC3545', borderRadius: '8px', height: '45px' }}>
+                                <XIcon /> Reject
+                            </button>
+                            <button type="button" onClick={() => setIsApproveConfirmOpen(true)} disabled={isSubmitting} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#198754', borderRadius: '8px', height: '45px' }}>
+                                <CheckIcon /> Approve
+                            </button>
+                        </div>
+                    )}
                     <button onClick={onClose} className="btn btn-link text-muted w-100 mt-2 text-decoration-none shadow-none">Cancel</button>
                 </div>
             </div>
+            <ConfirmModal
+                isOpen={isApproveConfirmOpen}
+                title="Approve Payroll?"
+                message="Are you sure you want to approve this payroll?"
+                confirmLabel="Approve"
+                variant="success"
+                isProcessing={isSubmitting}
+                onCancel={() => setIsApproveConfirmOpen(false)}
+                onConfirm={handleApprove}
+            />
         </div>
     );
 };
 
 const ReviewReturnModal = ({ isOpen, onClose, record }) => {
+    const [isRejecting, setIsRejecting] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [rejectionError, setRejectionError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setIsRejecting(false);
+            setRejectionReason('');
+            setRejectionError('');
+            setIsSubmitting(false);
+            setIsApproveConfirmOpen(false);
+        }
+    }, [isOpen]);
+
     if (!isOpen || !record) return null;
 
-    const handleAction = (action) => {
-        // FIXED: ADDED EXPLICIT WARNING ABOUT MANUAL RESTOCKING
-        if (action === 'approve') {
-            const confirmed = window.confirm("Are you sure you want to approve this return?\n\nIMPORTANT: Inventory will NOT be automatically restocked. You must manually add these items back to inventory if they are still usable.");
-            if (!confirmed) return;
-        } else if (action === 'reject') {
-            const confirmed = window.confirm("Are you sure you want to reject this return?");
-            if (!confirmed) return;
+    const submitAction = (action, payload = {}) => {
+        setIsSubmitting(true);
+        router.put(route('admin.approvals.return', { id: record.id, action }), payload, {
+            preserveScroll: true,
+            onSuccess: () => onClose(),
+            onFinish: () => setIsSubmitting(false)
+        });
+    };
+
+    const handleApprove = () => {
+        setIsApproveConfirmOpen(false);
+        submitAction('approve');
+    };
+
+    const handleReject = () => {
+        const reason = rejectionReason.trim();
+
+        if (!reason) {
+            setRejectionError('A rejection reason is required.');
+            return;
         }
 
-        router.put(route('admin.approvals.return', { id: record.id, action }), {}, {
-            preserveScroll: true,
-            onSuccess: () => onClose()
-        });
+        submitAction('reject', { rejection_reason: reason });
     };
 
     return (
@@ -160,17 +253,58 @@ const ReviewReturnModal = ({ isOpen, onClose, record }) => {
                         </div>
                     </div>
 
-                    <div className="d-flex justify-content-between gap-3 mt-4">
-                        <button onClick={() => handleAction('reject')} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#DC3545', borderRadius: '8px', height: '45px' }}>
-                            <XIcon /> Reject
-                        </button>
-                        <button onClick={() => handleAction('approve')} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#198754', borderRadius: '8px', height: '45px' }}>
-                            <CheckIcon /> Approve
-                        </button>
-                    </div>
+                    {isRejecting && (
+                        <div className="mb-4">
+                            <label className="form-label fw-bold text-dark" style={{ fontSize: '14px' }}>
+                                Rejection Reason
+                            </label>
+                            <textarea
+                                className={`form-control shadow-none ${rejectionError ? 'is-invalid' : ''}`}
+                                rows="4"
+                                value={rejectionReason}
+                                onChange={(e) => {
+                                    setRejectionReason(e.target.value);
+                                    if (rejectionError) setRejectionError('');
+                                }}
+                                placeholder="Explain why this return request is being rejected..."
+                                style={{ borderRadius: '8px', resize: 'none' }}
+                            />
+                            {rejectionError && <div className="invalid-feedback d-block">{rejectionError}</div>}
+                        </div>
+                    )}
+
+                    {isRejecting ? (
+                        <div className="d-flex justify-content-between gap-3 mt-4">
+                            <button type="button" onClick={() => setIsRejecting(false)} disabled={isSubmitting} className="btn w-50 fw-bold text-muted" style={{ backgroundColor: '#EBEAEE', borderRadius: '8px', height: '45px' }}>
+                                Back
+                            </button>
+                            <button type="button" onClick={handleReject} disabled={isSubmitting} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#DC3545', borderRadius: '8px', height: '45px' }}>
+                                <XIcon /> {isSubmitting ? 'Rejecting...' : 'Confirm Reject'}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="d-flex justify-content-between gap-3 mt-4">
+                            <button type="button" onClick={() => setIsRejecting(true)} disabled={isSubmitting} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#DC3545', borderRadius: '8px', height: '45px' }}>
+                                <XIcon /> Reject
+                            </button>
+                            <button type="button" onClick={() => setIsApproveConfirmOpen(true)} disabled={isSubmitting} className="btn w-50 fw-bold text-white d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#198754', borderRadius: '8px', height: '45px' }}>
+                                <CheckIcon /> Approve
+                            </button>
+                        </div>
+                    )}
                     <button onClick={onClose} className="btn btn-link text-muted w-100 mt-2 text-decoration-none shadow-none">Cancel</button>
                 </div>
             </div>
+            <ConfirmModal
+                isOpen={isApproveConfirmOpen}
+                title="Approve Return?"
+                message="Inventory will not be automatically restocked. Manually add the items back to inventory if they are still usable."
+                confirmLabel="Approve"
+                variant="success"
+                isProcessing={isSubmitting}
+                onCancel={() => setIsApproveConfirmOpen(false)}
+                onConfirm={handleApprove}
+            />
         </div>
     );
 };

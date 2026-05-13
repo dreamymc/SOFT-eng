@@ -21,7 +21,8 @@ class Payroll extends Model
         'allowance',
         'other_pay',
         'gross_pay',
-        'status' // NEW: Added to fillable so the Owner can update it later
+        'status',
+        'rejection_reason'
     ];
 
     /**

@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/react';
 import AdminLayout from '../../Layout/AdminLayout';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ConfirmModal from '../../Components/ConfirmModal';
 
 const AlertCircleIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -49,6 +50,7 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
     // State for managing modals
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
+    const [pdfError, setPdfError] = useState('');
 
     const getAlertStyle = (type) => {
         switch(type) {
@@ -128,7 +130,7 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
 
         } catch (error) {
             console.error("PDF Generation failed: ", error);
-            alert(`Failed to generate PDF. Error: ${error.message}`);
+            setPdfError(`Failed to generate PDF. Error: ${error.message}`);
         }
     };
 
@@ -409,6 +411,16 @@ function Report({ allProducts = [], stockAlerts = [], salesOverview = {} }) {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={!!pdfError}
+                title="PDF Generation Failed"
+                message={pdfError}
+                confirmLabel="Close"
+                variant="danger"
+                hideCancel
+                onConfirm={() => setPdfError('')}
+            />
 
         </div>
     );

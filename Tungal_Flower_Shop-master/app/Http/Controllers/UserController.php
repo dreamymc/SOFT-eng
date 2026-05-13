@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -44,7 +45,15 @@ class UserController extends Controller
     }
 
     public function dashboard(){
-        $allProducts = Product::with('batches')->get();
+        $allProducts = Product::select('products.*')
+            ->with(['batches' => function($query) {
+                $query->where('status', 'active')
+                      ->orderByRaw('expires_at IS NULL, expires_at ASC');
+            }])
+            ->addSelect(['total_pieces_sold' => OrderDetail::select(DB::raw('SUM(quantity * COALESCE(multiplier, 1))'))
+                ->whereColumn('product_id', 'products.id')
+            ])
+            ->get();
         
         $total_flowers_in_store = $allProducts->sum('stocks');
         $recent_orders_count = Order::where('created_at', '>=', now()->subDays(30))->count();
@@ -63,7 +72,6 @@ class UserController extends Controller
             ->take(3)
             ->get();
 
-        // Extract IDs of top selling products to exclude them from least selling
         $topSellingIds = $topSellingProducts->pluck('product_id')->toArray();
 
         $leastSellingProducts = OrderDetail::with('product')
@@ -79,6 +87,54 @@ class UserController extends Controller
         $recently_added = Product::where('created_at', '>=', now()->subDays(7))->count();
         
         $returned_flowers = \App\Models\ReturnRequest::count();
+        $total_pieces_sold = OrderDetail::select(DB::raw('SUM(quantity * COALESCE(multiplier, 1)) as total_pieces'))->value('total_pieces') ?? 0;
+        $out_of_stock_count = $allProducts->where('stocks', '<=', 0)->count();
+        $active_batch_count = $allProducts->flatMap->batches->count();
+        $expiring_soon_count = $allProducts->flatMap->batches
+            ->filter(function ($batch) {
+                return $batch->expires_at && \Carbon\Carbon::parse($batch->expires_at)->between(now(), now()->addDays(7));
+            })
+            ->count();
+
+        $lowStockProducts = $allProducts->where('stocks', '<=', 15)->sortBy('stocks')->values();
+
+        $stockAlerts = $lowStockProducts->map(function($product) {
+            $type = 'attention';
+            $label = 'Attention !';
+
+            if ($product->stocks == 0) {
+                $type = 'out_of_stock';
+                $label = 'Out of Stock';
+            } elseif ($product->stocks <= 5) {
+                $type = 'below_minimum';
+                $label = 'Below Minimum';
+            } elseif ($product->stocks <= 10) {
+                $type = 'low_stock';
+                $label = 'Low Stock';
+            }
+
+            $nextBatch = $product->batches->first();
+            $dateText = 'N/A';
+            
+            if ($product->stocks == 0) {
+                $dateText = 'Depleted';
+            } elseif ($nextBatch && $nextBatch->expires_at) {
+                $dateText = 'Exp: ' . \Carbon\Carbon::parse($nextBatch->expires_at)->format('M j, Y');
+            } elseif ($nextBatch && !$nextBatch->expires_at) {
+                $dateText = 'Non-Perishable';
+            }
+
+            return [
+                'id' => $product->id,
+                'type' => $type,
+                'label' => $label,
+                'product' => $product->product_name,
+                'units' => $product->stocks,
+                'date' => $dateText
+            ];
+        });
+
+        $salesReportOrders = Order::with(['details.product', 'user'])->latest()->get();
 
         return inertia('Admin/Dashboard',[
             'total_flowers_in_store' => $total_flowers_in_store,
@@ -90,6 +146,13 @@ class UserController extends Controller
             'total_categories' => $total_categories,
             'recently_added' => $recently_added,
             'returned_flowers' => $returned_flowers,
+            'total_pieces_sold' => $total_pieces_sold,
+            'out_of_stock_count' => $out_of_stock_count,
+            'active_batch_count' => $active_batch_count,
+            'expiring_soon_count' => $expiring_soon_count,
+            'allProducts' => $allProducts,
+            'stockAlerts' => $stockAlerts,
+            'salesReportOrders' => $salesReportOrders,
         ]);
     }
 
@@ -121,7 +184,6 @@ class UserController extends Controller
                 $label = 'Low Stock';
             }
 
-            // Determine what to display for the date based on remaining active batches
             $nextBatch = $product->batches->first();
             $dateText = 'N/A';
             
@@ -183,7 +245,8 @@ class UserController extends Controller
             'firstname' => 'required|max:50',
             'lastname' => 'required|max:50',
             'contact_number' => 'required|min:11|max:11|unique:users,contact_number',
-            'role' => 'required',
+            // INJECTED: Allowlist to block rogue Admin escalation
+            'role' => ['required', Rule::in(['Manager', 'Cashier', 'Delivery', 'Employee'])],
             'username' => 'required|unique:users,username',
             'password' => 'required|string|min:8',
             'profile' => 'required|file|mimes:jpg,jpeg,png|max:5120'
@@ -217,9 +280,15 @@ class UserController extends Controller
 
     public function fireEmployee($id) {
         $employee = User::findOrFail($id);
+        $currentUser = auth()->user();
         
-        if ($employee->id === auth()->id()) {
+        if ($employee->id === $currentUser->id) {
             return redirect()->back()->with('error', 'You cannot fire yourself.');
+        }
+
+        // INJECTED: Privilege guard against lateral or upward termination
+        if (in_array($employee->role, ['Admin', 'Owner']) && !in_array($currentUser->role, ['Admin', 'Owner'])) {
+             return redirect()->back()->with('error', 'Unauthorized to terminate this privileged account.');
         }
         
         $employee->delete();
@@ -249,6 +318,14 @@ class UserController extends Controller
     }
 
     public function updateUserInfo(Request $request){
+        $targetUser = User::findOrFail($request->id);
+        $currentUser = auth()->user();
+
+        // INJECTED: Privilege guard against lateral or upward account tampering
+        if (in_array($targetUser->role, ['Admin', 'Owner']) && !in_array($currentUser->role, ['Admin', 'Owner'])) {
+             return redirect()->back()->with('error', 'Unauthorized to modify this privileged account.');
+        }
+
         $existingContacts = User::where('contact_number',$request->contact_number)->first();
 
         if($existingContacts && $existingContacts->id == $request->id){
@@ -285,6 +362,14 @@ class UserController extends Controller
     }
 
     public function updatePassword(Request $request){
+        $targetUser = User::findOrFail($request->id);
+        $currentUser = auth()->user();
+
+        // INJECTED: Privilege guard 
+        if (in_array($targetUser->role, ['Admin', 'Owner']) && !in_array($currentUser->role, ['Admin', 'Owner'])) {
+             return redirect()->back()->with('error', 'Unauthorized to modify this privileged account.');
+        }
+
         $fields = $request->validate([
             'new_password' => 'required|string|min:8',
             'confirm_password' => 'required|string|same:new_password',
@@ -316,7 +401,7 @@ class UserController extends Controller
             'username' => 'required',
         ]);
 
-        $data = User::where('id',$request->id)->update([
+        $data = User::where('id', auth()->id())->update([
             'firstname' => $request->firstname,
             'lastname' => $request->lastname,
             'contact_number' => $request->contact_number,
@@ -337,7 +422,7 @@ class UserController extends Controller
             'confirm_password' => 'required|string|same:new_password',
         ]);
 
-        $user = User::where('id',$request->id)->update(['password' =>  Hash::make($fields['new_password'])]);
+        $user = User::where('id', auth()->id())->update(['password' =>  Hash::make($fields['new_password'])]);
 
         if($user){
             return redirect()->route('admin.profile')

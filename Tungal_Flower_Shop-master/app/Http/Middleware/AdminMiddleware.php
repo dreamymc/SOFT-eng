@@ -10,10 +10,15 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (!auth()->check()) {
+            return redirect()->route('login');
+        }
+
         // Allow Admin, Manager, and Owner to access the Admin dashboards
-        if (auth()->check() && in_array(auth()->user()->role, ['Admin', 'Manager', 'Owner'])) {
+        if (in_array(auth()->user()->role, ['Admin', 'Manager', 'Owner'])) {
             return $next($request);
         }
+        
         abort(403, 'Forbidden - no permission');
     }
 }

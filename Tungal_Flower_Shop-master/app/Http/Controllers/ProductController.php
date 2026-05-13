@@ -11,21 +11,26 @@ use Illuminate\Support\Facades\Auth;
 class ProductController extends Controller
 {
     public function showInventoryProduct(){
-        // FIXED: Eager load batches and the employee who made them
         $products = Product::with(['types', 'batches.employee'])->latest()->paginate(6);
         return inertia('Admin/Inventory', ['products' => $products]);
     }
 
     public function displayProduct(){
-        // FIXED: Eager load batches for the customer/cashier side too
         $products = Product::with(['types', 'batches'])->latest()->paginate(8);
         return inertia('Customer/Product', ['products' => $products]);
     }
 
     public function showProduct($product_id){
-        // FIXED: Eager load batches here too
-        $product = Product::with(['types', 'batches'])->find($product_id);
+        $product = Product::with(['types', 'batches'])->findOrFail($product_id);
         return inertia('Customer/Product_Features/ShowProduct', ['product' => $product]);
+    }
+
+    // INJECTED: Missing method added to support the admin.inventory.viewProduct route
+    public function viewProduct($product_id){
+        $product = Product::with(['types', 'batches'])->findOrFail($product_id);
+        return inertia('Admin/Inventory_Features/ViewProduct', [
+            'products' => $product
+        ]);
     }
 
     public function storeProduct(Request $request){
@@ -90,23 +95,17 @@ class ProductController extends Controller
 
             $product->update($updateData);
 
-            // STRUCTURAL FIX: Replaced destructive delete() with intelligent sync
             if (!empty($fields['types'])) {
-                // Get the names of the types coming from the request
                 $incomingTypeNames = collect($fields['types'])->pluck('name')->toArray();
-
-                // 1. Delete types that are no longer present in the incoming request
                 $product->types()->whereNotIn('name', $incomingTypeNames)->delete();
 
-                // 2. Update existing types or create new ones
                 foreach ($fields['types'] as $type) {
                     $product->types()->updateOrCreate(
-                        ['name' => $type['name']], // Match by name to prevent duplicates
-                        ['multiplier' => $type['multiplier']] // Update the multiplier if changed
+                        ['name' => $type['name']], 
+                        ['multiplier' => $type['multiplier']] 
                     );
                 }
             } else {
-                // If the user removed all types in the form, clear them safely
                 $product->types()->delete();
             }
 
@@ -123,10 +122,6 @@ class ProductController extends Controller
         $product->delete();
         return redirect()->back()->with('success', 'Product deleted successfully.');
     }
-
-    // ==========================================
-    // NEW BATCH MANAGEMENT LOGIC
-    // ==========================================
 
     public function storeBatch(Request $request)
     {
