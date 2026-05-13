@@ -45,7 +45,15 @@ class UserController extends Controller
     }
 
     public function dashboard(){
-        $allProducts = Product::with('batches')->get();
+        $allProducts = Product::select('products.*')
+            ->with(['batches' => function($query) {
+                $query->where('status', 'active')
+                      ->orderByRaw('expires_at IS NULL, expires_at ASC');
+            }])
+            ->addSelect(['total_pieces_sold' => OrderDetail::select(DB::raw('SUM(quantity * COALESCE(multiplier, 1))'))
+                ->whereColumn('product_id', 'products.id')
+            ])
+            ->get();
         
         $total_flowers_in_store = $allProducts->sum('stocks');
         $recent_orders_count = Order::where('created_at', '>=', now()->subDays(30))->count();
@@ -79,6 +87,54 @@ class UserController extends Controller
         $recently_added = Product::where('created_at', '>=', now()->subDays(7))->count();
         
         $returned_flowers = \App\Models\ReturnRequest::count();
+        $total_pieces_sold = OrderDetail::select(DB::raw('SUM(quantity * COALESCE(multiplier, 1)) as total_pieces'))->value('total_pieces') ?? 0;
+        $out_of_stock_count = $allProducts->where('stocks', '<=', 0)->count();
+        $active_batch_count = $allProducts->flatMap->batches->count();
+        $expiring_soon_count = $allProducts->flatMap->batches
+            ->filter(function ($batch) {
+                return $batch->expires_at && \Carbon\Carbon::parse($batch->expires_at)->between(now(), now()->addDays(7));
+            })
+            ->count();
+
+        $lowStockProducts = $allProducts->where('stocks', '<=', 15)->sortBy('stocks')->values();
+
+        $stockAlerts = $lowStockProducts->map(function($product) {
+            $type = 'attention';
+            $label = 'Attention !';
+
+            if ($product->stocks == 0) {
+                $type = 'out_of_stock';
+                $label = 'Out of Stock';
+            } elseif ($product->stocks <= 5) {
+                $type = 'below_minimum';
+                $label = 'Below Minimum';
+            } elseif ($product->stocks <= 10) {
+                $type = 'low_stock';
+                $label = 'Low Stock';
+            }
+
+            $nextBatch = $product->batches->first();
+            $dateText = 'N/A';
+            
+            if ($product->stocks == 0) {
+                $dateText = 'Depleted';
+            } elseif ($nextBatch && $nextBatch->expires_at) {
+                $dateText = 'Exp: ' . \Carbon\Carbon::parse($nextBatch->expires_at)->format('M j, Y');
+            } elseif ($nextBatch && !$nextBatch->expires_at) {
+                $dateText = 'Non-Perishable';
+            }
+
+            return [
+                'id' => $product->id,
+                'type' => $type,
+                'label' => $label,
+                'product' => $product->product_name,
+                'units' => $product->stocks,
+                'date' => $dateText
+            ];
+        });
+
+        $salesReportOrders = Order::with(['details.product', 'user'])->latest()->get();
 
         return inertia('Admin/Dashboard',[
             'total_flowers_in_store' => $total_flowers_in_store,
@@ -90,6 +146,13 @@ class UserController extends Controller
             'total_categories' => $total_categories,
             'recently_added' => $recently_added,
             'returned_flowers' => $returned_flowers,
+            'total_pieces_sold' => $total_pieces_sold,
+            'out_of_stock_count' => $out_of_stock_count,
+            'active_batch_count' => $active_batch_count,
+            'expiring_soon_count' => $expiring_soon_count,
+            'allProducts' => $allProducts,
+            'stockAlerts' => $stockAlerts,
+            'salesReportOrders' => $salesReportOrders,
         ]);
     }
 

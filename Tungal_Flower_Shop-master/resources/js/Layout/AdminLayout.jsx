@@ -2,7 +2,7 @@ import React from 'react'
 import logo from '../../../public/assets/images/logo.png'
 import profile from '../../../public/assets/images/profile.png'
 import { Link, usePage } from '@inertiajs/react'
-import { BsFillGridFill, BsBoxSeam, BsFileText, BsTruck, BsArrowReturnLeft, BsCashStack, BsPersonCheck, BsCreditCard } from "react-icons/bs";
+import { BsFillGridFill, BsBoxSeam, BsTruck, BsArrowReturnLeft, BsCashStack, BsPersonCheck, BsCreditCard } from "react-icons/bs";
 import { IoExit, IoPeople } from "react-icons/io5";
 import { FaBars } from "react-icons/fa6";
 import { useRoute } from '../../../vendor/tightenco/ziggy'
@@ -53,12 +53,6 @@ export default function AdminLayout({ children }) {
                         {(role === 'Admin' || role === 'Manager' || role === 'Owner') && (
                             <Link href={route('admin.sales')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none sidebar-item-custom" style={route().current('admin.sales') ? activeLinkStyle : inactiveLinkStyle}>
                                 <BsCashStack className="fs-5" /> Sales
-                            </Link>
-                        )}
-                        
-                        {(role === 'Admin' || role === 'Owner') && (
-                            <Link href={route('admin.report')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none sidebar-item-custom" style={route().current('admin.report') ? activeLinkStyle : inactiveLinkStyle}>
-                                <BsFileText className="fs-5" /> Report
                             </Link>
                         )}
                         
@@ -135,12 +129,6 @@ export default function AdminLayout({ children }) {
                             {(role === 'Admin' || role === 'Manager' || role === 'Owner') && (
                                 <Link href={route('admin.sales')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none sidebar-item-custom" style={route().current('admin.sales') ? activeLinkStyle : inactiveLinkStyle}>
                                     <BsCashStack /> Sales
-                                </Link>
-                            )}
-                            
-                            {(role === 'Admin' || role === 'Owner') && (
-                                <Link href={route('admin.report')} className="d-flex align-items-center gap-3 rounded p-3 text-decoration-none" style={route().current('admin.report') ? activeLinkStyle : inactiveLinkStyle}>
-                                    <BsFileText /> Report
                                 </Link>
                             )}
                             
