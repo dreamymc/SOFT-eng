@@ -9,14 +9,15 @@ RUN apt-get update && apt-get install -y \
 RUN a2enmod rewrite 
 
 #SET Apache DocumentRoot ot /var/www/html/public
-RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-enabled/000-default.conf\ 
-    && sed -i 's|var/www/html/public|g' /etc/apache2/apache2.conf
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf \
+    &&  sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/apache2.conf
 
 #Copy APP code 
 COPY . /var/www/html/
 
 #Create uploads folder and set permissions
-RUN mkdir -p /var/www/html/public/uploads\ && chown -R www-data:www-data /var/www/html/public/uploads \
+RUN mkdir -p /var/www/html/public/uploads \
+    && chown -R www-data:www-data /var/www/html/public/uploads \
     && chmod -R 775 /var/www/html/public/uploads
 
 #SET working dir
