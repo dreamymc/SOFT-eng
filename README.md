@@ -53,9 +53,7 @@ Root-level files are for repository and deployment support. The Dockerfile copie
 - Admin
 - Manager
 - Cashier
-- Employee
 - Delivery
-- Customer
 
 ## Main Features
 
