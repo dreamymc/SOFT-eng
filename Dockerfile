@@ -31,8 +31,11 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Copy Laravel app
 COPY ./Tungal_Flower_Shop-master /var/www/html/
 
-# Create required directories
-RUN mkdir -p storage \
+# Create all required Laravel directories explicitly
+RUN mkdir -p storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
     bootstrap/cache \
     public/uploads
 
