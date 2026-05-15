@@ -13,14 +13,13 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && docker-php-ext-install pdo pdo_mysql pdo_pgsql zip
 
-# Enable Apache rewrite
+# Enable Apache rewrite module
 RUN a2enmod rewrite
 
-# Set Apache document root
-RUN sed -i 's|/var/www/html|/var/www/html/public|g' \
-    /etc/apache2/sites-available/000-default.conf \
-    && sed -i 's|/var/www/html|/var/www/html/public|g' \
-    /etc/apache2/apache2.conf
+# Set Apache document root and enable .htaccess rules (AllowOverride)
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf \
+    && sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/apache2.conf \
+    && sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
 
 # Set working directory
 WORKDIR /var/www/html
@@ -41,6 +40,25 @@ RUN mkdir -p storage/framework/cache/data \
     storage/logs \
     bootstrap/cache \
     public/uploads
+
+# Recreate the missing Laravel .htaccess file
+RUN echo '<IfModule mod_rewrite.c>\n\
+    <IfModule mod_negotiation.c>\n\
+    Options -MultiViews -Indexes\n\
+    </IfModule>\n\
+    RewriteEngine On\n\
+    # Handle Authorization Header\n\
+    RewriteCond %{HTTP:Authorization} .\n\
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]\n\
+    # Redirect Trailing Slashes If Not A Folder...\n\
+    RewriteCond %{REQUEST_FILENAME} !-d\n\
+    RewriteCond %{REQUEST_URI} (.+)/$\n\
+    RewriteRule ^ %1 [L,R=301]\n\
+    # Send Requests To Front Controller...\n\
+    RewriteCond %{REQUEST_FILENAME} !-d\n\
+    RewriteCond %{REQUEST_FILENAME} !-f\n\
+    RewriteRule ^ index.php [L]\n\
+    </IfModule>' > public/.htaccess
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
