@@ -37,7 +37,7 @@ RUN mkdir -p public/uploads \
     && chmod -R 775 storage bootstrap/cache public/uploads
 
 # Expose Apache port
-EXPOSE 80
+EXPOSE 10000
 
 # Start Apache
 CMD ["apache2-foreground"]
