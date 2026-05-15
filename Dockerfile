@@ -38,6 +38,7 @@ RUN mkdir -p storage/framework/cache/data \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
+    storage/app/public \
     bootstrap/cache \
     public/uploads
 
@@ -65,6 +66,9 @@ RUN composer install --no-dev --optimize-autoloader
 
 # Install Node dependencies and build React/Inertia assets
 RUN npm install && npm run build
+
+# Create the storage symlink so images are publicly accessible
+RUN php artisan storage:link
 
 # Set Permissions
 RUN chown -R www-data:www-data storage bootstrap/cache public/uploads public \
