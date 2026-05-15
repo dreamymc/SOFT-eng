@@ -28,12 +28,16 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Copy Laravel app
 COPY ./Tungal_Flower_Shop-master /var/www/html/
 
+# Create required directories before running Composer
+RUN mkdir -p storage \
+    bootstrap/cache \
+    public/uploads
+
 # Install Laravel dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Permissions
-RUN mkdir -p public/uploads \
-    && chown -R www-data:www-data storage bootstrap/cache public/uploads \
+# Set Permissions
+RUN chown -R www-data:www-data storage bootstrap/cache public/uploads \
     && chmod -R 775 storage bootstrap/cache public/uploads
 
 # Expose Apache port
