@@ -63,7 +63,8 @@ class OrderController extends Controller
                 ->firstOrFail();
             
             if ($request->hasFile('proof_image')) {
-                $path = cloudinary()->upload($request->file('proof_image')->getRealPath(), ['folder' => 'proofs'])->getSecurePath();
+                $uploadedProof = cloudinary()->uploadApi()->upload($request->file('proof_image')->getRealPath(), ['folder' => 'proofs']);
+                $path = $uploadedProof['secure_url'];
                 $order->update([
                     'delivery_proof' => $path,
                     'order_status' => 'Delivered',
