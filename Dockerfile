@@ -31,6 +31,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Copy Laravel app
 COPY ./Tungal_Flower_Shop-master /var/www/html/
 
+# NUKE ANY CACHED CONFIGS FROM LOCAL MACHINE
+RUN rm -f bootstrap/cache/*.php
+
 # Create all required Laravel directories explicitly
 RUN mkdir -p storage/framework/cache/data \
     storage/framework/sessions \
