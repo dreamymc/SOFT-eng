@@ -255,7 +255,7 @@ class UserController extends Controller
         $fields['password'] = Hash::make($fields['password']);
 
         if($request->hasFile('profile')){
-            $fields['profile'] = Storage::disk('public')->put('profiles',$request->profile);
+            $fields['profile'] = cloudinary()->upload($request->file('profile')->getRealPath(), ['folder' => 'profiles'])->getSecurePath();
             $user = User::create($fields);
 
             if($user){

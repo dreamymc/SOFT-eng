@@ -33,7 +33,7 @@ export default function DeliveryLayout({ children }) {
                 {/* Driver Profile */}
                 <div className="d-flex align-items-center gap-3">
                     <img 
-                        src={auth?.user?.profile ? `/storage/${auth.user.profile}` : profile} 
+                        src={auth?.user?.profile ? (auth.user.profile?.startsWith('http') ? auth.user.profile : `/storage/${auth.user.profile}`) : profile} 
                         alt="profile" 
                         className="object-fit-cover rounded-circle shadow-sm" 
                         style={{ width: '45px', height: '45px', border: '2px solid #6C63FF' }} 

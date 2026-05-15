@@ -14,7 +14,7 @@ export default function ProductCard({ id, name, price, stock, image, onBuyClick 
       
       {/* Assuming the DB saves it as 'products/filename.jpg', this will work perfectly after running php artisan storage:link */}
       <img 
-        src={image ? `/storage/${image}` : '/assets/images/product.png'} 
+        src={image ? (image?.startsWith('http') ? image : `/storage/${image}`) : '/assets/images/product.png'} 
         className="card-img-top object-fit-cover" 
         alt={name} 
         style={{ height: '250px', backgroundColor: '#F4F5FA' }} 

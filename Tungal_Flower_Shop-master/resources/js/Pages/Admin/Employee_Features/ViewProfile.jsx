@@ -217,7 +217,7 @@ export default function ViewProfile({ user_info }) {
                     {/* Profile Header */}
                     <div className="d-flex align-items-center gap-4 mb-4">
                         <div className="rounded-3 d-flex justify-content-center align-items-center overflow-hidden flex-shrink-0" style={{ width: '110px', height: '110px', backgroundColor: '#7B9DFA' }}>
-                            <img src={targetData.profile ? `/storage/${targetData.profile}` : profilePlaceholder} alt="Profile" className="object-fit-cover w-100 h-100" />
+                            <img src={targetData.profile ? (targetData.profile?.startsWith('http') ? targetData.profile : `/storage/${targetData.profile}`) : profilePlaceholder} alt="Profile" className="object-fit-cover w-100 h-100" />
                         </div>
                         <div>
                             <h3 className="fw-bold mb-1 text-dark">{data.firstname} {data.lastname}</h3>

@@ -206,7 +206,7 @@ function Inventory({ products }) {
                                             <td className="py-3 px-4">
                                                 <div className="d-flex align-items-center gap-3">
                                                     <div className="rounded-3 overflow-hidden flex-shrink-0 shadow-sm" style={{ width: '48px', height: '48px', backgroundColor: '#F4F5FA', border: isSelected ? '2px solid #7859FF' : 'none' }}>
-                                                        <img src={product.image ? `/storage/${product.image}` : '/assets/images/product.png'} alt={product.product_name} className="w-100 h-100 object-fit-cover" />
+                                                        <img src={product.image ? (product.image?.startsWith('http') ? product.image : `/storage/${product.image}`) : '/assets/images/product.png'} alt={product.product_name} className="w-100 h-100 object-fit-cover" />
                                                     </div>
                                                     <div>
                                                         <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '14px' }}>{product.product_name}</h6>

@@ -83,7 +83,7 @@ export default function AdminLayout({ children }) {
                     </nav>
 
                     <div className="d-flex flex-column align-items-center w-100 mt-4">
-                        <img src={auth.user ? `/storage/${auth.user.profile}` : profile} alt="profile" className="rounded-circle mb-3 border" style={{ width: '90px', height: '90px', objectFit: 'cover' }} />
+                        <img src={auth.user ? (auth.user.profile?.startsWith('http') ? auth.user.profile : `/storage/${auth.user.profile}`) : profile} alt="profile" className="rounded-circle mb-3 border" style={{ width: '90px', height: '90px', objectFit: 'cover' }} />
                         <h6 className="fw-bold text-dark text-center mb-4">{auth.user ? `${auth.user.firstname} ${auth.user.lastname}` : 'Juan Dela Cruz'}</h6>
                         <Link href={route('customer.index')} className="btn w-100 text-white fw-bold d-flex align-items-center justify-content-center gap-2 py-2" style={{ backgroundColor: '#de5b62', borderRadius: '8px' }}>
                             <IoExit className="fs-5" /> Log Out
@@ -160,7 +160,7 @@ export default function AdminLayout({ children }) {
                         </nav>
 
                         <div className="mt-4 pt-4 border-top d-flex flex-column align-items-center">
-                            <img src={auth.user ? `/storage/${auth.user.profile}` : profile} alt="profile" className="rounded-circle mb-2" style={{ width: '60px', height: '60px', objectFit: 'cover' }} />
+                            <img src={auth.user ? (auth.user.profile?.startsWith('http') ? auth.user.profile : `/storage/${auth.user.profile}`) : profile} alt="profile" className="rounded-circle mb-2" style={{ width: '60px', height: '60px', objectFit: 'cover' }} />
                             <span className="fw-bold mb-3">{auth.user ? `${auth.user.firstname} ${auth.user.lastname}` : 'Guest'}</span>
                             <Link href={route('customer.index')} className="btn w-100 text-white fw-bold d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#de5b62', borderRadius: '8px' }}>
                                 <IoExit /> Log Out

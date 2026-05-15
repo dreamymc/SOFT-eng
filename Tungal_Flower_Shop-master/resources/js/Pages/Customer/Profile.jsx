@@ -105,7 +105,7 @@ function Profile({ user_info }) {
                     {/* Profile Image Positioned on the Left */}
                     <div className="position-absolute d-flex align-items-center gap-4" style={{ top: '155px', left: '20px' }}>
                         <img
-                            src={`/storage/${user_info.profile}`}
+                            src={(user_info.profile?.startsWith('http') ? user_info.profile : `/storage/${user_info.profile}`)}
                             alt="profile"
                             className="rounded-circle object-fit-cover shadow border border-3 border-light"
                             style={{ width: '150px', height: '150px' }}

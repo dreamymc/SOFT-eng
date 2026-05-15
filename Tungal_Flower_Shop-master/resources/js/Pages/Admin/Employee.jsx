@@ -121,7 +121,7 @@ function Employee({ employees }) {
                                             style={{ width: '120px', height: '120px', backgroundColor: '#7B9DFA' }}
                                         >
                                             <img
-                                                src={employee.profile ? `/storage/${employee.profile}` : profilePlaceholder}
+                                                src={employee.profile ? (employee.profile?.startsWith('http') ? employee.profile : `/storage/${employee.profile}`) : profilePlaceholder}
                                                 alt="profile"
                                                 className="object-fit-cover"
                                                 style={{ width: '90%', height: '90%', borderRadius: '50%' }}

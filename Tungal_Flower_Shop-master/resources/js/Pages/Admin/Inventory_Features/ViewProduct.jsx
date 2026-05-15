@@ -56,7 +56,7 @@ function ViewProduct({ products }) {
                 <div className="row gap-3" style={{ marginBottom: '125px' }}>
                     <div className="col-md-5 text-center">
                         <img
-                            src={`/storage/${products.image}`}
+                            src={(products.image?.startsWith('http') ? products.image : `/storage/${products.image}`)}
                             alt="product"
                             className="object-fit-contain"
                             style={{ width: '350px', height: '350px' }}

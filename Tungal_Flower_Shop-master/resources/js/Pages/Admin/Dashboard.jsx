@@ -421,7 +421,7 @@ function Dashboard({
                                                     <div className="col-12 col-md-4 d-flex align-items-center gap-3 mb-3 mb-md-0">
                                                         <div style={{ width: '80px', height: '80px', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#f8f9fa', flexShrink: 0 }}>
                                                             {product.image ? (
-                                                                <img src={`/storage/${product.image}`} alt={product.product_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                                <img src={(product.image?.startsWith('http') ? product.image : `/storage/${product.image}`)} alt={product.product_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                             ) : (
                                                                 <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted">No Img</div>
                                                             )}

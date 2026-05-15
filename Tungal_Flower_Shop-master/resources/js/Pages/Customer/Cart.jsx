@@ -139,7 +139,7 @@ function Cart({ carts, total, products }) {
                             <div className="card-body p-3 d-flex align-items-center justify-content-between">
                               
                               <div className="d-flex align-items-center gap-3" style={{ width: '40%' }}>
-                                <img src={`/storage/${item.product.image}`} alt={item.product.product_name} className="object-fit-cover" style={{ width: '80px', height: '80px', borderRadius: '10px' }} />
+                                <img src={(item.product.image?.startsWith('http') ? item.product.image : `/storage/${item.product.image}`)} alt={item.product.product_name} className="object-fit-cover" style={{ width: '80px', height: '80px', borderRadius: '10px' }} />
                                 <div>
                                     <span className="fw-bold fs-5 text-dark d-block text-truncate">{item.product.product_name}</span>
                                     <small className="text-muted d-block">{item.type_name} (x{item.multiplier})</small>

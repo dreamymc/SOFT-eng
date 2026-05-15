@@ -46,7 +46,7 @@ class ProductController extends Controller
 
         $imagePath = null;
         if($request->hasFile('image')){
-            $imagePath = Storage::disk('public')->put('products', $request->image);
+            $imagePath = cloudinary()->upload($request->file('image')->getRealPath(), ['folder' => 'products'])->getSecurePath();
         }
 
         $product = Product::create([
@@ -90,7 +90,7 @@ class ProductController extends Controller
             ];
 
             if($request->hasFile('image')){
-                $updateData['image'] = Storage::disk('public')->put('products', $request->image);
+                $updateData['image'] = cloudinary()->upload($request->file('image')->getRealPath(), ['folder' => 'products'])->getSecurePath();
             }
 
             $product->update($updateData);
@@ -117,7 +117,12 @@ class ProductController extends Controller
 
     public function destroyProduct(Product $product){
         if ($product->image) {
-            Storage::disk('public')->delete($product->image);
+            if (str_starts_with($product->image, 'http')) {
+                $publicId = pathinfo(parse_url($product->image, PHP_URL_PATH), PATHINFO_FILENAME);
+                cloudinary()->destroy('products/' . $publicId);
+            } else {
+                Storage::disk('public')->delete($product->image);
+            }
         }
         $product->delete();
         return redirect()->back()->with('success', 'Product deleted successfully.');

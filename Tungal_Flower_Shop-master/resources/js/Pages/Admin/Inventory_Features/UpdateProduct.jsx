@@ -33,7 +33,7 @@ export default function UpdateProduct({ isOpen, onClose, flower }) {
                 price: flower.price || '',
                 types: flower.types ? [...flower.types] : [], 
             });
-            setImagePreview(flower.image ? `/storage/${flower.image}` : null);
+            setImagePreview(flower.image ? (flower.image?.startsWith('http') ? flower.image : `/storage/${flower.image}`) : null);
             clearErrors();
         }
     }, [flower, isOpen]);
@@ -44,7 +44,7 @@ export default function UpdateProduct({ isOpen, onClose, flower }) {
         if (file) {
             setImagePreview(URL.createObjectURL(file)); 
         } else {
-            setImagePreview(flower?.image ? `/storage/${flower.image}` : null); 
+            setImagePreview(flower?.image ? (flower.image?.startsWith('http') ? flower.image : `/storage/${flower.image}`) : null); 
         }
     };
 

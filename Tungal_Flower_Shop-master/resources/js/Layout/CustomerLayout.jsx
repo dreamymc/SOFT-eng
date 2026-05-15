@@ -44,7 +44,7 @@ export default function CustomerLayout({ children }) {
         <div className="p-4 border-top border-light border-opacity-25 d-flex flex-column align-items-center">
           <Link href={route('customer.profile')} className="d-flex flex-column align-items-center text-decoration-none text-white mb-3 w-100">
             <img
-              src={auth?.user?.profile ? `/storage/${auth.user.profile}` : '/assets/images/profile.png'}
+              src={auth?.user?.profile ? (auth.user.profile?.startsWith('http') ? auth.user.profile : `/storage/${auth.user.profile}`) : '/assets/images/profile.png'}
               alt="User avatar"
               className="rounded-circle object-fit-cover shadow-sm border border-2 border-white mb-2"
               style={{ width: '60px', height: '60px' }}

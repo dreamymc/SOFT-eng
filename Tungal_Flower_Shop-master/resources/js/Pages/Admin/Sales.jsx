@@ -271,7 +271,7 @@ function Sales({ employees, orders, currentSelected_ID }) {
                                     <h6 className="fw-bold text-secondary mb-3">Proof of Delivery</h6>
                                     <div className="bg-light p-3 rounded-3 text-center border">
                                         <img 
-                                            src={`/storage/${selectedOrder.delivery_proof}`} 
+                                            src={(selectedOrder.delivery_proof?.startsWith('http') ? selectedOrder.delivery_proof : `/storage/${selectedOrder.delivery_proof}`)} 
                                             alt="Delivery Proof" 
                                             className="img-fluid rounded shadow-sm" 
                                             style={{ maxHeight: '300px', objectFit: 'contain' }} 
