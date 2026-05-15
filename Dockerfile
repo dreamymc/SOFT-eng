@@ -39,9 +39,6 @@ RUN mkdir -p storage \
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Setup Environment and Key
-RUN cp .env.example .env && php artisan key:generate
-
 # Install Node dependencies and build React/Inertia assets
 RUN npm install && npm run build
 
