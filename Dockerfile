@@ -42,12 +42,12 @@ RUN composer install --no-dev --optimize-autoloader
 # Install Node dependencies and build React/Inertia assets
 RUN npm install && npm run build
 
-# Set Permissions (Added public/build so Vite can write if needed)
+# Set Permissions
 RUN chown -R www-data:www-data storage bootstrap/cache public/uploads public \
     && chmod -R 775 storage bootstrap/cache public/uploads public
 
-# Expose Apache port
-EXPOSE 10000
+# Expose Apache's actual default port
+EXPOSE 80
 
 # Start Apache
 CMD ["apache2-foreground"]
