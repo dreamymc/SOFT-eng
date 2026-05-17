@@ -155,10 +155,11 @@ export default function AddEmployee({ isOpen, onClose }) {
                             <div className="col-md-6">
                                 <label className="form-label text-muted mb-1" style={{ fontSize: '12px' }}>Role</label>
                                 <select className="form-select form-select-sm" style={{ borderRadius: '8px' }} value={data.role} onChange={(e) => setData('role', e.target.value)}>
-                                    <option>Cashier</option>
-                                    <option>Delivery Personnel</option>
-                                    <option>Manager</option>
                                     <option>Admin</option>
+                                    <option>Owner</option>
+                                    <option>Manager</option>
+                                    <option>Cashier</option>
+                                    <option>Delivery</option>
                                 </select>
                             </div>
 

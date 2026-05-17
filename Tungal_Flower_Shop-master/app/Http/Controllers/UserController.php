@@ -31,7 +31,7 @@ class UserController extends Controller
 
             if(in_array($user->role, ['Admin', 'Manager', 'Owner'])){
                 return redirect()->intended('/admin/dashboard');
-            }elseif(in_array($user->role, ['Cashier', 'Employee'])){
+            }elseif($user->role === 'Cashier'){
                 return redirect()->intended('/product');
             }elseif(strtolower($user->role) === 'delivery'){
                 return redirect()->intended('/delivery/dashboard');
@@ -246,7 +246,7 @@ class UserController extends Controller
             'lastname' => 'required|max:50',
             'contact_number' => 'required|min:11|max:11|unique:users,contact_number',
             // INJECTED: Allowlist to block rogue Admin escalation
-            'role' => ['required', Rule::in(['Manager', 'Cashier', 'Delivery', 'Employee'])],
+            'role' => ['required', Rule::in(['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])],
             'username' => 'required|unique:users,username',
             'password' => 'required|string|min:8',
             'profile' => 'required|file|mimes:jpg,jpeg,png|max:5120'
@@ -268,7 +268,7 @@ class UserController extends Controller
     }
 
     public function displayEmployee(){
-        $employees = User::whereIn('role', ['Manager', 'Cashier', 'Delivery', 'Employee'])->get();
+        $employees = User::whereIn('role', ['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])->get();
         return inertia('Admin/Employee',['employees' => $employees]);
     }
 
@@ -434,7 +434,7 @@ class UserController extends Controller
     }
 
     public function sales(){
-        $employees = User::whereIn('role', ['Manager', 'Cashier', 'Delivery', 'Employee'])->get();
+        $employees = User::whereIn('role', ['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])->get();
         
         $orders = Order::with(['details.product', 'user'])->latest()->paginate(12);
 
@@ -446,7 +446,7 @@ class UserController extends Controller
     }
 
     public function selectedEmployee($user_id){
-        $employees = User::whereIn('role', ['Manager', 'Cashier', 'Delivery', 'Employee'])->get();
+        $employees = User::whereIn('role', ['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])->get();
 
         if($user_id != 'All'){
             $orders = Order::with(['details.product', 'user'])->where('user_id', $user_id)->latest()->paginate(12);
@@ -464,7 +464,7 @@ class UserController extends Controller
         $rawId = $request->input('order_id');
         $cleanId = preg_replace('/\D+/', '', $rawId);
         
-        $employees = User::whereIn('role', ['Manager', 'Cashier', 'Delivery', 'Employee'])->get();
+        $employees = User::whereIn('role', ['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])->get();
         $orders = Order::with(['details.product', 'user'])->where('id', $cleanId)->latest()->paginate(12);
 
         return inertia('Admin/Sales',[
@@ -522,7 +522,7 @@ class UserController extends Controller
     }
 
     public function payroll(){
-        $employees = User::whereIn('role', ['Manager', 'Cashier', 'Delivery', 'Employee'])->get();
+        $employees = User::whereIn('role', ['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])->get();
         
         $payrolls = Payroll::with('employee')->latest()->paginate(10);
 

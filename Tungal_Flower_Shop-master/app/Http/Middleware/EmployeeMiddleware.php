@@ -15,7 +15,7 @@ class EmployeeMiddleware
         }
 
         // Allows Cashiers to access the POS. Admins and Managers are also added here so they can ring people up if needed.
-        if (in_array(auth()->user()->role, ['Employee', 'Cashier', 'Manager', 'Admin', 'Owner'])) {
+        if (in_array(auth()->user()->role, ['Cashier', 'Manager', 'Admin', 'Owner'])) {
             return $next($request);
         }
         

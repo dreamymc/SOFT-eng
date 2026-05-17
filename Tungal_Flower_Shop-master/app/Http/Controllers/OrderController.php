@@ -10,8 +10,7 @@ class OrderController extends Controller
 {
     public function orders() {
         try {
-            $orders = Order::with('details') 
-                ->where('user_id', auth()->id())
+            $orders = Order::with(['details.product', 'user'])
                 ->latest()
                 ->paginate(10);
         
