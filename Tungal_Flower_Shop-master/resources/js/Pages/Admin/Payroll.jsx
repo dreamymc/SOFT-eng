@@ -426,6 +426,7 @@ const ViewPayrollModal = ({ isOpen, onClose, payrollRecord }) => {
     if (!isOpen || !payrollRecord) return null;
 
     const empName = payrollRecord.employee ? `${payrollRecord.employee.firstname} ${payrollRecord.employee.lastname}` : 'Unknown';
+    const processedByName = payrollRecord.processed_by ? `${payrollRecord.processed_by.firstname} ${payrollRecord.processed_by.lastname}` : null;
 
     return (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ backgroundColor: 'rgba(20, 20, 30, 0.5)', zIndex: 1050 }}>
@@ -474,6 +475,12 @@ const ViewPayrollModal = ({ isOpen, onClose, payrollRecord }) => {
                             <span className="fw-bold text-muted d-block mb-1" style={{ fontSize: '12px', textTransform: 'uppercase' }}>Salary Method</span>
                             <span className="fw-bolder text-dark" style={{ fontSize: '15px' }}>{payrollRecord.salary_method || 'Cash'}</span>
                         </div>
+                        {processedByName && (
+                            <div className="col-md-6 border-end pt-3 mt-3 border-top">
+                                <span className="fw-bold text-muted d-block mb-1" style={{ fontSize: '12px', textTransform: 'uppercase' }}>{payrollRecord.status === 'Rejected' ? 'Rejected By' : 'Approved By'}</span>
+                                <span className="fw-bolder text-dark" style={{ fontSize: '15px' }}>{processedByName}</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="row g-4 mb-2">

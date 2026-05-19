@@ -10,6 +10,15 @@ const ViewIcon = () => (
     </svg>
 );
 
+const InvoiceIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="8" y1="13" x2="16" y2="13"></line>
+        <line x1="8" y1="17" x2="14" y2="17"></line>
+    </svg>
+);
+
 const ArrowLeft = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -43,6 +52,7 @@ const ViewReturnModal = ({ isOpen, onClose, record }) => {
     
     // Extracting Cashier safely
     const cashierName = req.cashier ? `${req.cashier.firstname} ${req.cashier.lastname}` : 'Unknown Cashier';
+    const processedByName = req.processed_by ? `${req.processed_by.firstname} ${req.processed_by.lastname}` : null;
 
     return (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ backgroundColor: 'rgba(20, 20, 30, 0.6)', zIndex: 1050 }}>
@@ -101,6 +111,12 @@ const ViewReturnModal = ({ isOpen, onClose, record }) => {
                             <span className="text-muted fw-medium d-block mb-1" style={{ fontSize: '13px' }}>Refund Method</span>
                             <span className="fw-bold text-dark">{req.refund_method || 'N/A'}</span>
                         </div>
+                        {processedByName && (
+                            <div className="col-6">
+                                <span className="text-muted fw-medium d-block mb-1" style={{ fontSize: '13px' }}>{record.status === 'Rejected' ? 'Rejected By' : 'Approved By'}</span>
+                                <span className="fw-bold text-dark">{processedByName}</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Specific Item Details */}
@@ -126,7 +142,10 @@ const ViewReturnModal = ({ isOpen, onClose, record }) => {
                         </div>
                     </div>
 
-                    <div className="d-flex justify-content-end">
+                    <div className="d-flex justify-content-end gap-2">
+                        <Link href={route('admin.invoice', { order_id: req.order_id })} className="btn fw-bold px-4 text-white shadow-none" style={{ backgroundColor: '#758AF8', borderRadius: '8px', height: '45px' }}>
+                            View Invoice
+                        </Link>
                         <button type="button" onClick={onClose} className="btn fw-bold px-5 text-white shadow-none" style={{ backgroundColor: '#6C757D', borderRadius: '8px', height: '45px' }}>
                             Close
                         </button>
@@ -230,13 +249,23 @@ export default function Returns({ returns }) {
                                                 </span>
                                             </td>
                                             <td className="py-3">
-                                                <button 
-                                                    className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-2 fw-semibold shadow-sm text-dark" 
-                                                    style={{ backgroundColor: '#E3E4ED', borderRadius: '8px', padding: '6px 12px', fontSize: '13px', border: 'none' }}
-                                                    onClick={(e) => { e.stopPropagation(); openViewModal(row); }}
-                                                >
-                                                    <ViewIcon /> View
-                                                </button>
+                                                <div className="d-flex justify-content-center gap-2">
+                                                    <button 
+                                                        className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-2 fw-semibold shadow-sm text-dark" 
+                                                        style={{ backgroundColor: '#E3E4ED', borderRadius: '8px', padding: '6px 12px', fontSize: '13px', border: 'none' }}
+                                                        onClick={(e) => { e.stopPropagation(); openViewModal(row); }}
+                                                    >
+                                                        <ViewIcon /> View
+                                                    </button>
+                                                    <Link
+                                                        href={route('admin.invoice', { order_id: row.raw_request.order_id })}
+                                                        className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-2 fw-semibold shadow-sm text-white"
+                                                        style={{ backgroundColor: '#758AF8', borderRadius: '8px', padding: '6px 12px', fontSize: '13px', border: 'none' }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <InvoiceIcon /> Invoice
+                                                    </Link>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

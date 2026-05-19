@@ -104,6 +104,7 @@ function Dashboard({
         try {
             const periodLabel = getPeriodLabel(period);
             const orders = getPeriodOrders(period);
+            const totalSales = orders.reduce((sum, order) => sum + (parseFloat(order.total) || 0), 0);
             const doc = new jsPDF('landscape');
 
             doc.setFontSize(18);
@@ -114,11 +115,16 @@ function Dashboard({
             doc.setTextColor(100, 100, 100);
             doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 25);
 
+            doc.setFontSize(12);
+            doc.setTextColor(31, 30, 30);
+            doc.text(`Total Sales (${periodLabel}): PHP ${totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, 32);
+
             autoTable(doc, {
-                startY: 34,
+                startY: 40,
                 head: [[
                     'Order ID',
                     'Handled By',
+                    'Delivered By',
                     'Order Qty',
                     'Total Pieces',
                     'Source Batches',
@@ -136,6 +142,7 @@ function Dashboard({
                         : 'N/A';
 
                     const handledBy = order.user ? `${order.user.firstname} ${order.user.lastname}` : 'System';
+                    const deliveredBy = order.delivered_by ? `${order.delivered_by.firstname} ${order.delivered_by.lastname}` : 'N/A';
                     const formattedDate = new Date(order.created_at).toLocaleString('en-US', {
                         month: 'short',
                         day: '2-digit',
@@ -148,6 +155,7 @@ function Dashboard({
                     return [
                         `#TUNGAL${order.id}`,
                         handledBy,
+                        deliveredBy,
                         `${order.quantity} Units`,
                         `${totalPiecesBought} Pieces`,
                         allUsedBatches || 'N/A',
@@ -161,13 +169,14 @@ function Dashboard({
                 styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
                 columnStyles: {
                     0: { cellWidth: 28 },
-                    1: { cellWidth: 35 },
-                    2: { cellWidth: 25 },
-                    3: { cellWidth: 28 },
-                    4: { cellWidth: 42 },
-                    5: { cellWidth: 28 },
-                    6: { cellWidth: 38 },
-                    7: { cellWidth: 34 },
+                    1: { cellWidth: 32 },
+                    2: { cellWidth: 32 },
+                    3: { cellWidth: 23 },
+                    4: { cellWidth: 25 },
+                    5: { cellWidth: 38 },
+                    6: { cellWidth: 26 },
+                    7: { cellWidth: 36 },
+                    8: { cellWidth: 30 },
                 },
             });
 

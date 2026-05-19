@@ -25,7 +25,7 @@ class OrderController extends Controller
     public function deliveriesList() 
     {
         try {
-            $orders = \App\Models\Order::where('order_type', 'Delivery')->latest()->get();
+            $orders = \App\Models\Order::with('deliveredBy')->where('order_type', 'Delivery')->latest()->get();
             
             return inertia('Employee/Deliveries', [
                 'orders' => $orders
@@ -67,6 +67,7 @@ class OrderController extends Controller
                 $order->update([
                     'delivery_proof' => $path,
                     'order_status' => 'Delivered',
+                    'delivered_by_user_id' => auth()->id(),
                 ]);
             }
             
@@ -100,7 +101,7 @@ class OrderController extends Controller
     public function deliveryDashboard() 
     {
         try {
-            $orders = \App\Models\Order::where('order_type', 'Delivery')->latest()->get();
+            $orders = \App\Models\Order::with('deliveredBy')->where('order_type', 'Delivery')->latest()->get();
             return inertia('Delivery/Dashboard', ['orders' => $orders]);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to load dashboard data.');
@@ -110,7 +111,7 @@ class OrderController extends Controller
     public function deliveryDetails($id)
     {
         try {
-            $order = \App\Models\Order::with('details.product')->findOrFail($id);
+            $order = \App\Models\Order::with(['details.product', 'deliveredBy'])->findOrFail($id);
 
             if ($order->order_type !== 'Delivery') {
                 return redirect()->back()->with('error', 'Invalid access to delivery details.');

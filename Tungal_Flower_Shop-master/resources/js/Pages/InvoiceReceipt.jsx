@@ -6,6 +6,7 @@ import { Link } from '@inertiajs/react';
 
 function InvoiceReceipt({ order, orderDetails }) {
     const route = useRoute();
+    const cashierName = order.user ? `${order.user.firstname} ${order.user.lastname}` : 'N/A';
 
     if (!order || !orderDetails || orderDetails.length === 0) {
         return (
@@ -105,7 +106,7 @@ function InvoiceReceipt({ order, orderDetails }) {
                     </div>
                     <div className="d-flex justify-content-between" style={{ fontSize: '13px' }}>
                         <span className="text-muted">Cashier:</span>
-                        <span className="text-dark">{order.user?.firstname} {order.user?.lastname}</span>
+                        <span className="text-dark">{cashierName}</span>
                     </div>
                 </div>
 

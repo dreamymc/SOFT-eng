@@ -28,7 +28,8 @@ class Order extends Model
         'cash_recieved', // Keeping your exact spelling from the controller
         'change',
         'order_status',
-        'delivery_proof'
+        'delivery_proof',
+        'delivered_by_user_id'
     ];
 
     // ==========================================
@@ -49,5 +50,10 @@ class Order extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function deliveredBy()
+    {
+        return $this->belongsTo(User::class, 'delivered_by_user_id');
     }
 }

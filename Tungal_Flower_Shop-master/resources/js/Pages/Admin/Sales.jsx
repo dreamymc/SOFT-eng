@@ -85,6 +85,7 @@ function Sales({ employees, orders, currentSelected_ID }) {
                             <tr>
                                 <th className="py-3 fw-bolder text-start ps-4" style={{ fontSize: '14px' }}>Order ID</th>
                                 <th className="py-3 fw-bolder" style={{ fontSize: '14px' }}>Handled By</th>
+                                <th className="py-3 fw-bolder" style={{ fontSize: '14px' }}>Delivered By</th>
                                 <th className="py-3 fw-bolder" style={{ fontSize: '14px' }}>Order Qty</th>
                                 <th className="py-3 fw-bolder" style={{ fontSize: '14px' }}>Total Pieces</th>
                                 <th className="py-3 fw-bolder" style={{ fontSize: '14px' }}>Source Batches</th>
@@ -109,6 +110,7 @@ function Sales({ employees, orders, currentSelected_ID }) {
                                         : 'N/A';
 
                                     const handledBy = order.user ? `${order.user.firstname} ${order.user.lastname}` : 'System';
+                                    const deliveredBy = order.delivered_by ? `${order.delivered_by.firstname} ${order.delivered_by.lastname}` : 'N/A';
                                     
                                     // FIXED: Sync Status Colors across the platform
                                     const displayStatus = order.order_status || order.status;
@@ -125,6 +127,7 @@ function Sales({ employees, orders, currentSelected_ID }) {
                                         <tr key={order.id} onClick={() => openOrderModal(order)} style={{ transition: 'background-color 0.2s ease' }} className="table-row-hover">
                                             <td className="py-3 fw-bolder text-dark text-start ps-4" style={{ fontSize: '13px' }}>#TUNGAL{order.id}</td>
                                             <td className="py-3 fw-medium text-secondary" style={{ fontSize: '13px' }}>{handledBy}</td>
+                                            <td className="py-3 fw-medium text-secondary" style={{ fontSize: '13px' }}>{deliveredBy}</td>
                                             <td className="py-3 fw-bold text-dark" style={{ fontSize: '13px' }}>{order.quantity} Units</td>
                                             <td className="py-3 text-primary fw-bold" style={{ fontSize: '13px' }}>{totalPiecesBought} Pieces</td>
                                             <td className="py-3 text-muted" style={{ fontSize: '11px', maxWidth: '150px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
@@ -142,7 +145,7 @@ function Sales({ employees, orders, currentSelected_ID }) {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan="8" className="text-center text-muted py-5">No transaction history found.</td>
+                                    <td colSpan="9" className="text-center text-muted py-5">No transaction history found.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -210,6 +213,12 @@ function Sales({ employees, orders, currentSelected_ID }) {
                                         {new Date(selectedOrder.created_at).toLocaleString("en-US", { month: "long", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                                     </h6>
                                 </div>
+                                {selectedOrder.delivered_by && (
+                                    <div className="col-md-6 mt-3">
+                                        <p className="text-muted mb-1" style={{ fontSize: '13px' }}>Delivered By</p>
+                                        <h6 className="fw-bold">{`${selectedOrder.delivered_by.firstname} ${selectedOrder.delivered_by.lastname}`}</h6>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Financial Summary */}

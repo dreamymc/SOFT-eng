@@ -52,6 +52,9 @@ class UserController extends Controller
             }])
             ->addSelect(['total_pieces_sold' => OrderDetail::select(DB::raw('SUM(quantity * COALESCE(multiplier, 1))'))
                 ->whereColumn('product_id', 'products.id')
+                ->whereHas('order', function ($query) {
+                    $query->where('order_status', '!=', 'Refunded');
+                })
             ])
             ->get();
         
@@ -59,6 +62,9 @@ class UserController extends Controller
         $recent_orders_count = Order::where('created_at', '>=', now()->subDays(30))->count();
 
         $chartData = OrderDetail::with('product')
+            ->whereHas('order', function ($query) {
+                $query->where('order_status', '!=', 'Refunded');
+            })
             ->selectRaw('product_id, SUM(total) as total_sales')
             ->groupBy('product_id')
             ->orderByDesc('total_sales')
@@ -66,6 +72,9 @@ class UserController extends Controller
             ->get();
 
         $topSellingProducts = OrderDetail::with('product')
+            ->whereHas('order', function ($query) {
+                $query->where('order_status', '!=', 'Refunded');
+            })
             ->selectRaw('product_id, SUM(total) as total_sales')
             ->groupBy('product_id')
             ->orderByDesc('total_sales')
@@ -75,6 +84,9 @@ class UserController extends Controller
         $topSellingIds = $topSellingProducts->pluck('product_id')->toArray();
 
         $leastSellingProducts = OrderDetail::with('product')
+            ->whereHas('order', function ($query) {
+                $query->where('order_status', '!=', 'Refunded');
+            })
             ->selectRaw('product_id, SUM(total) as total_sales')
             ->whereNotIn('product_id', $topSellingIds)
             ->groupBy('product_id')
@@ -87,7 +99,11 @@ class UserController extends Controller
         $recently_added = Product::where('created_at', '>=', now()->subDays(7))->count();
         
         $returned_flowers = \App\Models\ReturnRequest::count();
-        $total_pieces_sold = OrderDetail::select(DB::raw('SUM(quantity * COALESCE(multiplier, 1)) as total_pieces'))->value('total_pieces') ?? 0;
+        $total_pieces_sold = OrderDetail::whereHas('order', function ($query) {
+                $query->where('order_status', '!=', 'Refunded');
+            })
+            ->select(DB::raw('SUM(quantity * COALESCE(multiplier, 1)) as total_pieces'))
+            ->value('total_pieces') ?? 0;
         $out_of_stock_count = $allProducts->where('stocks', '<=', 0)->count();
         $active_batch_count = $allProducts->flatMap->batches->count();
         $expiring_soon_count = $allProducts->flatMap->batches
@@ -134,7 +150,10 @@ class UserController extends Controller
             ];
         });
 
-        $salesReportOrders = Order::with(['details.product', 'user'])->latest()->get();
+        $salesReportOrders = Order::with(['details.product', 'user', 'deliveredBy'])
+            ->where('order_status', '!=', 'Refunded')
+            ->latest()
+            ->get();
 
         return inertia('Admin/Dashboard',[
             'total_flowers_in_store' => $total_flowers_in_store,
@@ -164,6 +183,9 @@ class UserController extends Controller
             }])
             ->addSelect(['total_pieces_sold' => OrderDetail::select(DB::raw('SUM(quantity * COALESCE(multiplier, 1))'))
                 ->whereColumn('product_id', 'products.id')
+                ->whereHas('order', function ($query) {
+                    $query->where('order_status', '!=', 'Refunded');
+                })
             ])
             ->get();
 
@@ -205,19 +227,19 @@ class UserController extends Controller
             ];
         });
 
-        $totalSales = Order::sum('total');
-        $totalOrders = Order::count();
+        $totalSales = Order::where('order_status', '!=', 'Refunded')->sum('total');
+        $totalOrders = Order::where('order_status', '!=', 'Refunded')->count();
         $avgSales = $totalOrders > 0 ? $totalSales / $totalOrders : 0;
 
         $current30Start = now()->subDays(30);
         $prev30Start = now()->subDays(60);
 
-        $currentSales = Order::where('created_at', '>=', $current30Start)->sum('total');
-        $prevSales = Order::whereBetween('created_at', [$prev30Start, $current30Start])->sum('total');
+        $currentSales = Order::where('order_status', '!=', 'Refunded')->where('created_at', '>=', $current30Start)->sum('total');
+        $prevSales = Order::where('order_status', '!=', 'Refunded')->whereBetween('created_at', [$prev30Start, $current30Start])->sum('total');
         $salesTrend = $prevSales > 0 ? round((($currentSales - $prevSales) / $prevSales) * 100) : 0;
 
-        $currentOrdersCount = Order::where('created_at', '>=', $current30Start)->count();
-        $prevOrdersCount = Order::whereBetween('created_at', [$prev30Start, $current30Start])->count();
+        $currentOrdersCount = Order::where('order_status', '!=', 'Refunded')->where('created_at', '>=', $current30Start)->count();
+        $prevOrdersCount = Order::where('order_status', '!=', 'Refunded')->whereBetween('created_at', [$prev30Start, $current30Start])->count();
         $ordersTrend = $prevOrdersCount > 0 ? round((($currentOrdersCount - $prevOrdersCount) / $prevOrdersCount) * 100) : 0;
 
         $currentAvg = $currentOrdersCount > 0 ? $currentSales / $currentOrdersCount : 0;
@@ -436,7 +458,7 @@ class UserController extends Controller
     public function sales(){
         $employees = User::whereIn('role', ['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])->get();
         
-        $orders = Order::with(['details.product', 'user'])->latest()->paginate(12);
+        $orders = Order::with(['details.product', 'user', 'deliveredBy'])->latest()->paginate(12);
 
         return inertia('Admin/Sales',[
             'employees' => $employees,
@@ -449,7 +471,7 @@ class UserController extends Controller
         $employees = User::whereIn('role', ['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])->get();
 
         if($user_id != 'All'){
-            $orders = Order::with(['details.product', 'user'])->where('user_id', $user_id)->latest()->paginate(12);
+            $orders = Order::with(['details.product', 'user', 'deliveredBy'])->where('user_id', $user_id)->latest()->paginate(12);
             return inertia('Admin/Sales',[
                 'employees' => $employees,
                 'orders' => $orders,
@@ -465,7 +487,7 @@ class UserController extends Controller
         $cleanId = preg_replace('/\D+/', '', $rawId);
         
         $employees = User::whereIn('role', ['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])->get();
-        $orders = Order::with(['details.product', 'user'])->where('id', $cleanId)->latest()->paginate(12);
+        $orders = Order::with(['details.product', 'user', 'deliveredBy'])->where('id', $cleanId)->latest()->paginate(12);
 
         return inertia('Admin/Sales',[
             'employees' => $employees,
@@ -524,7 +546,7 @@ class UserController extends Controller
     public function payroll(){
         $employees = User::whereIn('role', ['Admin', 'Owner', 'Manager', 'Cashier', 'Delivery'])->get();
         
-        $payrolls = Payroll::with('employee')->latest()->paginate(10);
+        $payrolls = Payroll::with(['employee', 'processedBy'])->latest()->paginate(10);
 
         return inertia('Admin/Payroll', [
             'employees' => $employees,

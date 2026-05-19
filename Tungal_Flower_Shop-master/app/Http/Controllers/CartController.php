@@ -233,7 +233,7 @@ class CartController extends Controller
     public function invoice($order_id){
         try {
             $user = auth()->user();
-            $order = Order::findOrFail($order_id);
+            $order = Order::with('user')->findOrFail($order_id);
 
             if ($order->user_id !== $user->id && !in_array($user->role, ['Admin', 'Manager', 'Owner'])) {
                 return redirect()->back()
@@ -256,7 +256,7 @@ class CartController extends Controller
 
     public function downloadInvoice($order_id){
         try {
-            $order = Order::findOrFail($order_id);
+            $order = Order::with('user')->findOrFail($order_id);
             $orderDetails = OrderDetail::with(['product','user'])->where('order_id',$order_id)->get();
 
             return inertia('Admin/InvoiceReceipt',[

@@ -7,10 +7,8 @@ import { Link } from '@inertiajs/react';
 import { useRoute } from '../../../../vendor/tightenco/ziggy';
 
 function InvoiceReceipt({ order, orderDetails }) {
-    console.log(order);
-    console.log(orderDetails);
-
     const route = useRoute();
+    const cashierName = order.user ? `${order.user.firstname} ${order.user.lastname}` : 'N/A';
 
     const printRef = React.useRef(null);
 
@@ -64,8 +62,16 @@ function InvoiceReceipt({ order, orderDetails }) {
                     </div>
                 </div>
 
-                <h5 className='fw-bold'>Bill To:</h5>
-                <p className="text-muted mb-3">{orderDetails[0].user.firstname} {orderDetails[0].user.lastname}</p>
+                <div className="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 className='fw-bold'>Bill To:</h5>
+                        <p className="text-muted mb-0">{order.customer_name || 'Walk-in Customer'}</p>
+                    </div>
+                    <div className="text-end">
+                        <h5 className='fw-bold'>Cashier:</h5>
+                        <p className="text-muted mb-0">{cashierName}</p>
+                    </div>
+                </div>
 
                 <table className="table table-bordered mb-4">
                     <thead className='table-secondary text-center'>

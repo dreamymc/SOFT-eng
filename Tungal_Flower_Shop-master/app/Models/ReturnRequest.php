@@ -18,7 +18,8 @@ class ReturnRequest extends Model
         'reason',
         'refund_method',
         'status',
-        'rejection_reason'
+        'rejection_reason',
+        'processed_by_user_id'
     ];
 
     // Links to the Order
@@ -31,5 +32,10 @@ class ReturnRequest extends Model
     public function cashier()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function processedBy()
+    {
+        return $this->belongsTo(User::class, 'processed_by_user_id');
     }
 }

@@ -22,7 +22,8 @@ class Payroll extends Model
         'other_pay',
         'gross_pay',
         'status',
-        'rejection_reason'
+        'rejection_reason',
+        'processed_by_user_id'
     ];
 
     /**
@@ -31,5 +32,10 @@ class Payroll extends Model
     public function employee()
     {
         return $this->belongsTo(User::class, 'employee_id');
+    }
+
+    public function processedBy()
+    {
+        return $this->belongsTo(User::class, 'processed_by_user_id');
     }
 }

@@ -16,7 +16,7 @@ class ReturnController extends Controller
     {
         try {
             // Eager load order, order details, and products to flatten the data for the UI
-            $returns = ReturnRequest::with(['order.details.product', 'cashier'])
+            $returns = ReturnRequest::with(['order.details.product', 'cashier', 'processedBy'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
 
