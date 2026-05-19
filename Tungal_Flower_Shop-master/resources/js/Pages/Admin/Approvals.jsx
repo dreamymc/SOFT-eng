@@ -321,7 +321,8 @@ export default function Approvals({ pendingPayrolls = [], pendingReturns = [] })
     const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
 
-    const { flash } = usePage().props;
+    const { auth, flash } = usePage().props;
+    const userRole = auth?.user?.role;
 
     // Toast Notifications listener
     useEffect(() => {
@@ -437,16 +438,22 @@ export default function Approvals({ pendingPayrolls = [], pendingReturns = [] })
                                                     </span>
                                                 </td>
                                                 <td className="py-4">
-                                                    <button 
-                                                        onClick={() => {
-                                                            setSelectedRecord(row);
-                                                            setIsPayrollModalOpen(true);
-                                                        }}
-                                                        className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-2 fw-semibold text-white shadow-sm border-0" 
-                                                        style={{ backgroundColor: '#7859FF', borderRadius: '8px', padding: '8px 16px', fontSize: '13px' }}
-                                                    >
-                                                        <ActionIcon /> Review
-                                                    </button>
+                                                    {userRole === 'Owner' ? (
+                                                        <button 
+                                                            onClick={() => {
+                                                                                                setSelectedRecord(row);
+                                                                setIsPayrollModalOpen(true);
+                                                            }}
+                                                            className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-2 fw-semibold text-white shadow-sm border-0" 
+                                                            style={{ backgroundColor: '#7859FF', borderRadius: '8px', padding: '8px 16px', fontSize: '13px' }}
+                                                        >
+                                                            <ActionIcon /> Review
+                                                        </button>
+                                                    ) : (
+                                                        <span className="badge bg-secondary text-white px-3 py-2" style={{ fontSize: '12px' }}>
+                                                            Owner Only
+                                                        </span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))

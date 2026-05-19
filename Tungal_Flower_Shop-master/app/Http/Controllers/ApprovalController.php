@@ -52,6 +52,11 @@ class ApprovalController extends Controller
      */
     public function handlePayroll(Request $request, $id, $action)
     {
+        // Enforce role constraint: Only Owner role can approve or reject payrolls
+        if (auth()->user()->role !== 'Owner') {
+            abort(403, 'Unauthorized action: Only Owners can process or approve payrolls.');
+        }
+
         // 404 mapped gap: findOrFail throws a strict 404 if the record doesn't exist
         $payroll = Payroll::findOrFail($id);
 
