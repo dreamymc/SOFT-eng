@@ -16,6 +16,7 @@ function Product({ products }) {
   const { flash } = usePage().props;
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const productList = products?.data ? products.data : products || [];
   
   // INJECTED: Local UI Math state decoupled from the network request
   const [uiMath, setUiMath] = useState({ price: 0, multiplier: 1 });
@@ -97,8 +98,8 @@ function Product({ products }) {
       </div>
 
       <div className="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-4">
-        {products?.data?.length > 0 ? (
-          products.data.map((product) => (
+        {productList.length > 0 ? (
+          productList.map((product) => (
             <div className="col" key={product.id}>
               <ProductCard
                 id={product.id}

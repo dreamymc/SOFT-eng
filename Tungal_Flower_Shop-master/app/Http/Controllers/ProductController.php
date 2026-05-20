@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\Auth;
 class ProductController extends Controller
 {
     public function showInventoryProduct(){
-        $products = Product::with(['types', 'batches.employee'])->latest()->paginate(6);
+        $products = Product::with(['types', 'batches.employee'])->latest()->get();
         return inertia('Admin/Inventory', ['products' => $products]);
     }
 
     public function displayProduct(){
-        $products = Product::with(['types', 'batches'])->latest()->paginate(8);
+        $products = Product::with(['types', 'batches'])->latest()->get();
         return inertia('Customer/Product', ['products' => $products]);
     }
 
